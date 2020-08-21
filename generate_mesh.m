@@ -1,10 +1,19 @@
 function M = generate_mesh(M, varargin)
+% GENERATE_MESH
+% parameters:
+%   Type, Value
+%       refine
+%   Binary
+%       rewrite
+%
 
-f = @(f) (cellfun(@(x) ischar(x) && strcmp(x,f), varargin));
+f = @(g) (cellfun(@(x) ischar(x) && strcmp(x,g), varargin));
     function out = read_pair(name, default)
         ind = find(f(name));
-        if ind, out = varargin{ind + 1};
-        else out = default;
+        if ind
+            out = varargin{ind + 1};
+        else
+            out = default;
         end
     end
 refine = read_pair('refine', 0);
@@ -30,10 +39,6 @@ p = jigglemesh(p,e,t);
 M.mesh.p = p; M.mesh.e = e; M.mesh.t = t;
 
 M.plot.mesh = @plot_mesh;
-
-if any(f('plot_mesh'))
-    plot_mesh();
-end
 
     function plot_mesh
         fprintf('Plotting... ');

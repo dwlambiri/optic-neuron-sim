@@ -14,9 +14,9 @@ f = @(f) (cellfun(@(x) ischar(x) && strcmp(x,f), varargin));
 if isfield(M, 'P') && ~any(f('rewrite')), return, end
 
 init_insult = read_pair('init_insult', [0 0]);
-meduim_speed = read_pair('meduim_speed', .02);
+medium_speed = read_pair('medium_speed', .02);
 bundle_speed = read_pair('bundle_speed', .02);
-neroun_speed = read_pair('neroun_speed', 1);
+neuron_speed = read_pair('neuron_speed', 1);
 all_edge_delay = read_pair('edge_delay', 2);
 
 neuron_speed_formula = @(R) 2./R; % 2/R, For  2/R^2  write this code   ->>  2./R.^2
@@ -68,9 +68,9 @@ subdomain.neuron = dom_map(1 + length(M.neuron) + (1:length(all_neurons_g)));
 
 % assigning domain speed
 domain_speed = zeros(nb_domains,1);
-domain_speed(subdomain.meduim) = meduim_speed;
+domain_speed(subdomain.meduim) = medium_speed;
 domain_speed(subdomain.bundles) = bundle_speed;
-domain_speed(subdomain.neuron) = neroun_speed * neuron_speed_formula(all_neurons_g(3,:));
+domain_speed(subdomain.neuron) = neuron_speed * neuron_speed_formula(all_neurons_g(3,:));
 
 p = M.mesh.p; e = M.mesh.e; t = M.mesh.t;
 % Setting propagation speed to each point based on their domain speed
@@ -79,7 +79,7 @@ edge_delay = zeros(1, length(p)); % additional imagenary distance infection has 
 
 for k = 1:nb_domains
     [domain_inter, domain_edge] = pdesdp(p,e,t,k); % find each domain edge and interior points
-    propagation_speed(domain_edge) = meduim_speed;
+    propagation_speed(domain_edge) = medium_speed;
     propagation_speed(domain_inter) = domain_speed(k);
 end
 Edge = e(1,:); % set of points on any boundary (slower propagation)
@@ -180,8 +180,10 @@ M.P = P;
         f = @(f) (cellfun(@(x) ischar(x) && strcmp(x,f), varargin));
         function out = read_pair(name,def)
             ind = find(f(name));
-            if ind, out = varargin{ind + 1};
-            else out = def;
+            if ind
+                out = varargin{ind + 1};
+            else
+                out = def;
             end
         end
         movie_file = read_pair('movie_file', ''); % Record animation name (records if not empty)
@@ -192,7 +194,7 @@ M.P = P;
         record_flag = ~isempty(movie_file); % record flag
         
         if record_flag
-            wO = VideoWriter(movie_file);
+            wO = VideoWriter(movie_file,'MPEG-4');
             wO.FrameRate = 20;
             wO.Quality = 100;
             wO.open;
@@ -202,6 +204,9 @@ M.P = P;
         ax = axes('units', 'normalized', 'position', [0.1 0.1 .8 .8]);
         sld = uicontrol('style','slider', 'Units','Normalized', 'position', [.1 .95 .8 .05]);
         M.plot.model();
+        if any(f('plot_mesh'))
+            M.plot.mesh();
+        end
         plot(init_insult(1), init_insult(2), 'b.', 'markersize', 20);
         
         if show_cont
@@ -247,7 +252,7 @@ y = linspace(ymin, ymax, nxy);
 zz=tri2grid(p, t, death_time, x, y);
 
 [~, h] = contourf(xx, yy, max(death_time) - zz);
-colormap(hot)
+%colormap(parula)
 % caxis([-20,20])
 
 upt = @Upt;

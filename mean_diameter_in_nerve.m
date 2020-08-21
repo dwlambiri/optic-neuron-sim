@@ -11,7 +11,7 @@ mean_diameter = [1.04 1.19	1.15    1.21    1.28    1.27
 %% Fit using Cubic spline interpolation
 [x, y] = meshgrid(-1:(2/5):1);
 sf = fit([x(:) y(:)],mean_diameter(:),'cubicinterp');
-% figure, plot(sf,[x(:) y(:)], mean_diameter(:));
+figure, plot(sf,[x(:) y(:)], mean_diameter(:));
 
 %% Create a fine grid using the fit
 grid_siz = 1000;
@@ -26,10 +26,10 @@ surf(x_mesh, y_mesh, mean_mesh, 'linestyle', 'none')
 %% Write grid to file
 
 % whos mean_mesh_radius % sse size of data in bytes
-% fid = fopen('axon_mean_radius.tbl', 'w');
-% fwrite(fid, grid_siz, 'uint32');
-% fwrite(fid, mean_mesh_radius, 'single');
-% fclose(fid);
+fid = fopen('axon_mean_radius.tbl', 'w');
+fwrite(fid, grid_siz, 'uint32');
+fwrite(fid, mean_mesh_radius, 'single');
+fclose(fid);
 
 
 
