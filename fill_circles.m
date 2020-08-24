@@ -16,15 +16,22 @@ if expected_r_avg
     radius_set = radius_set(1:n_max_circles);
     radius_set = sort(radius_set, 'descend');
 else
-    n_max_circles = ceil((main_r / mean(r_range))^2); % normalize n_iters based on dens(ity)
-    radius_set = Rand(n_max_circles, r_range);
+    %n_max_circles = ceil((main_r / mean(r_range))^2); % normalize n_iters based on dens(ity)
+    %radius_set = Rand(n_max_circles, r_range);
+    v1 = mean(r_range);
+    n_max_circles = ceil((main_r / v1)^2);
+    %mean_r_normalized = expected_r_avg / max(r_range);
+    radius_set = skewed_distr(n_max_circles, v1, min(r_range), max(r_range));
+    n_max_circles = size(radius_set,1);
+    radius_set = radius_set(1:n_max_circles);
+    radius_set = sort(radius_set, 'descend');
 end
 
 %% Main loop
-if expected_r_avg  
+if ~expected_r_avg  
     center = [0 0]; 
-    radius(1) = main_r/10;
-    sumrad2 = (main_r/20)^2;
+    radius(1) = main_r/4;
+    sumrad2 = (main_r/4)^2;
 else
     center = [];
     radius = [];
@@ -83,12 +90,19 @@ for k = 1:n_max_circles
 end
 toc
 del(nDispChar);
-if expected_r_avg  
+if ~expected_r_avg  
     if length(center(:,1)) >= 1
         %sumrad2 = sumrad2 - radius(1)^2;
         center(1,:) = [];
         radius(1) = [];
     end
+end
+if isempty(center) 
+    c = [0 0];
+    r = min(r_range);
+    center = [center; c];
+    radius = [radius; r];
+    sumrad2 = sumrad2 + r^2;
 end
 geom = [center radius]';
 fprintf("Ratio of filled space %0.2f\n",sumrad2/main_r^2);

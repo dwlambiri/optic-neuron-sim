@@ -33,7 +33,8 @@ neuron_scale = read_pair('neuron_scale', 30);
 nerve_r = read_pair('nerve_r', 1500);
 bundle_r_range = read_pair('bundle_r_range', [250 300]);
 min_bundles_dis = read_pair('min_bundles_dis', min(bundle_r_range)/10);
-neuron_r_range = read_pair('neuron_r_range', [.5 12]*neuron_scale); % should be [.15 8] um
+%neuron_r_range = read_pair('neuron_r_range', [.75 12]*neuron_scale); % should be [.15 7] um
+neuron_r_range = [0.9 39]; % because of 10 pixels/um and radius
 neuron_dens = read_pair('neuron_dens', 1);
 refine = read_pair('refine', 0);
 
@@ -59,19 +60,51 @@ if ~isempty(file)
     end
 end
 
-%% Bundle GUI
-
 % Create bundles
 bund_g = [];
 bundle_dens = 1;
 ok = 0;
 ip = 0;
 
+if any(f('GUI'))
+    fig_ui = figure('units', 'normalized', 'toolbar','figure', 'Name', 'Bundle Settings', 'outerposition', [0.2 0.1 .6 .8]);
+    ax_ui = axes('units', 'normalized', 'position', [0.1 0.1 .7 .8]);
+    
+    h_feedback = pair_text('Status: ', [.05 .92], []); h_feedback.Position = [.13 .92 .8 .05]; h_feedback.Enable = 'off';
+    h_nerv_r = pair_text('Nerve Radius:', [.82 .8], nerve_r);
+    h_min_dis = pair_text('Min Clearance', [.82 .7], min_bundles_dis);
+    h_bundle_r_range = pair_text('Bundle Raduis Range:', [.82 .6], bundle_r_range);
+    %h_neuron_scale = pair_text('Neuron Scale', [.82 .5], neuron_scale);
+    uicontrol('style','pushbutton', 'Units','Normalized', 'position', [.84 .4 .12 .05], 'String', 'Gen Bundles', 'Callback', @genBundle);
+    uicontrol('style','pushbutton', 'Units','Normalized', 'position', [.84 .3 .12 .05], 'String', 'Gen Neurons', 'Callback', @genNeurons);
+    uicontrol('style','pushbutton', 'Units','Normalized', 'position', [.84 .2 .12 .05], 'String', 'Gen Mesh', 'Callback', @genMesh);
+    genBundle(0,0);
+    
+    waitfor(fig_ui);
+    if ~ok
+        return;
+    end
+else
+    n_tries = 20;
+    while isempty(bund_g) && n_tries > 0
+        bund_g = fill_circles(0, nerve_r, bundle_dens, bundle_r_range, min_bundles_dis);
+        n_tries = n_tries - 1;
+        fprintf("Fill Circles: try# %d\n", n_tries);
+    end
+    if ~n_tries
+        warning('Could not fit any bundles within the nerve, please adjust the parameters');
+        return;
+    end
+end
+
+%% Bundle GUI
+
+
     function genBundle(~,~)
         t1 = str2num(h_nerv_r.String); %#ok<*ST2NM>
         t2 = str2num(h_min_dis.String);
         t3 = str2num(h_bundle_r_range.String);
-        t4 = str2num(h_neuron_scale.String);
+        %t4 = str2num(h_neuron_scale.String);
         if isempty(t1) || ~all(size(t1) == [1 1])
             h_feedback.String = 'Bad Nerve Radius!';
             return;
@@ -87,7 +120,7 @@ ip = 0;
         nerve_r = t1;
         min_bundles_dis = t2;
         bundle_r_range = t3;
-        neuron_scale = t4;
+        %neuron_scale = t4;
 
         n_tries = 20;
         bund_g = [];
@@ -139,7 +172,7 @@ ip = 0;
             set(gca, 'ButtonDownFcn', @btn_Down);
             h_feedback.String = "Please select the starting point of the injury!";
             drawnow;
-            uicontrol('style','pushbutton', 'Units','Normalized', 'position', [.84 .2 .12 .05], 'String', 'RunAlgo', 'Callback', @RunAlgo);
+            uicontrol('style','pushbutton', 'Units','Normalized', 'position', [.84 .1 .12 .05], 'String', 'RunAlgo', 'Callback', @RunAlgo);
         end
     end
     function genNeurons(~,~)
@@ -162,37 +195,9 @@ ip = 0;
         h_feedback.String = "Simulation Complete! Use 'Close' to terminate the window!";
     end
 
-if any(f('GUI'))
-    fig_ui = figure('units', 'normalized', 'toolbar','figure', 'Name', 'Bundle Settings', 'outerposition', [0.2 0.1 .6 .8]);
-    ax_ui = axes('units', 'normalized', 'position', [0.1 0.1 .7 .8]);
-    
-    h_feedback = pair_text('Status: ', [.05 .92], []); h_feedback.Position = [.13 .92 .8 .05]; h_feedback.Enable = 'off';
-    h_nerv_r = pair_text('Nerve Radius:', [.82 .8], nerve_r);
-    h_min_dis = pair_text('Min Clearance', [.82 .7], min_bundles_dis);
-    h_bundle_r_range = pair_text('Bundle Raduis Range:', [.82 .6], bundle_r_range);
-    h_neuron_scale = pair_text('Neuron Scale', [.82 .5], neuron_scale);
-    uicontrol('style','pushbutton', 'Units','Normalized', 'position', [.84 .4 .12 .05], 'String', 'Gen Bundles', 'Callback', @genBundle);
-    uicontrol('style','pushbutton', 'Units','Normalized', 'position', [.84 .3 .12 .05], 'String', 'Gen Neurons', 'Callback', @genNeurons);
-    uicontrol('style','pushbutton', 'Units','Normalized', 'position', [.84 .2 .12 .05], 'String', 'Gen Mesh', 'Callback', @genMesh);
-    genBundle(0,0);
-    
-    waitfor(fig_ui);
-    if ~ok 
-        return; 
-    end
-else
-    n_tries = 20;
-    while isempty(bund_g) && n_tries > 0
-        bund_g = fill_circles(0, nerve_r, bundle_dens, bundle_r_range, min_bundles_dis);
-        n_tries = n_tries - 1;
-        fprintf("Fill Circles: try# %d\n", n_tries);
-    end
-    if ~n_tries
-        warning('Could not fit any bundles within the nerve, please adjust the parameters');
-        return;
-    end
-end
+    function runGUI()
 
+    end
 %% Mesh Generation
         % finds the average neuron size based on statistics in: Pan et. al [2012]
     function r = radius_avg(norm_cent)
@@ -237,11 +242,12 @@ end
 
         axis equal, hold on
         draw_circles([0 0], M.nerve_r, 200, true, 1, varargin{:});
-        draw_circles(M.bund(1:2,:)', M.bund(3,:)', 100, true, 1, varargin{:});
         if ~no_neuron
             for kk = 1:length(M.neuron)
-                draw_circles(M.neuron{kk}(1:2,:)', M.neuron{kk}(3,:)', 20, false, 30, varargin{:});
+                draw_circles(M.neuron{kk}(1:2,:)', M.neuron{kk}(3,:)', 8, false, 30, varargin{:});
             end
+        else
+           draw_circles(M.bund(1:2,:)', M.bund(3,:)', 100, true, 1, varargin{:}); 
         end
         drawnow
     end
@@ -297,15 +303,16 @@ end
         expected_r_avg = zeros(n_bunds,1);
 
         fprintf('\tNumber of neurons: ');
+        total = 0;
         for k = 1:n_bunds
             expected_r_avg(k) = radius_avg(bund_g(1:2,k)./nerve_r);
             %neuron_g{k} = fill_circles(expected_r_avg(k), bund_g(3,k), neuron_dens, neuron_r_range, min(neuron_r_range)/2);
-            neuron_g{k} = fill_circles(9, bund_g(3,k), neuron_dens, neuron_r_range, 0);
-            fprintf('(%d) ', size(neuron_g{k}, 2));
+            neuron_g{k} = fill_circles(5, bund_g(3,k), neuron_dens, neuron_r_range, min_bundles_dis/3);
+            total = total + size(neuron_g{k}, 2);
             neuron_g{k}(1,:) = neuron_g{k}(1,:) + bund_g(1,k);
             neuron_g{k}(2,:) = neuron_g{k}(2,:) + bund_g(2,k);
         end
-        fprintf('\n');
+        fprintf('Total neurons %d\n', total);
 
         M.nerve_r = nerve_r;
         M.neuron_r_range = neuron_r_range;
