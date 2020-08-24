@@ -87,7 +87,7 @@ if any(f('GUI'))
 else
     n_tries = 20;
     while isempty(bund_g) && n_tries > 0
-        bund_g = fill_circles(0, nerve_r, bundle_dens, bundle_r_range, min_bundles_dis);
+        bund_g = fill_circles(0, nerve_r, bundle_dens, bundle_r_range, min_bundles_dis, 4);
         n_tries = n_tries - 1;
         fprintf("Fill Circles: try# %d\n", n_tries);
     end
@@ -125,7 +125,7 @@ end
         n_tries = 20;
         bund_g = [];
         while isempty(bund_g) && n_tries > 0
-            bund_g = fill_circles(0, nerve_r, bundle_dens, bundle_r_range, min_bundles_dis);
+            bund_g = fill_circles(0, nerve_r, bundle_dens, bundle_r_range, min_bundles_dis, 4);
             n_tries = n_tries - 1;
             fprintf("Fill Circles: try# %d\n", n_tries);
         end
@@ -152,7 +152,7 @@ end
         uicontrol('style','edit', 'Units','Normalized', 'position', [pos .08 .05], 'String', txt, 'Enable', 'off', 'BackgroundColor', [0.9400 0.9400 0.9400]);
         h = uicontrol('style','edit', 'Units','Normalized', 'position', [pos+[.08 0] .08 .05], 'String', num2str(def));
     end
-    
+     
     function genMesh(~,~)
         h_feedback.String = "Generating Mesh! Please wait ...";
         drawnow;
@@ -245,7 +245,7 @@ end
         if ~no_neuron
             draw_circles(M.bund(1:2,:)', M.bund(3,:)', 100, true, 1, 'w');
             for kk = 1:length(M.neuron)
-                draw_circles(M.neuron{kk}(1:2,:)', M.neuron{kk}(3,:)', 8, false, 30, varargin{:});
+                draw_circles(M.neuron{kk}(1:2,:)', M.neuron{kk}(3,:)', 5, true, 30, varargin{:});
             end
         else
            draw_circles(M.bund(1:2,:)', M.bund(3,:)', 100, true, 1, varargin{:}); 
@@ -308,7 +308,7 @@ end
         for k = 1:n_bunds
             expected_r_avg(k) = radius_avg(bund_g(1:2,k)./nerve_r);
             %neuron_g{k} = fill_circles(expected_r_avg(k), bund_g(3,k), neuron_dens, neuron_r_range, min(neuron_r_range)/2);
-            neuron_g{k} = fill_circles(5, bund_g(3,k), neuron_dens, neuron_r_range, min_bundles_dis/3);
+            neuron_g{k} = fill_circles(5, bund_g(3,k), neuron_dens, neuron_r_range, min_bundles_dis/3, 0);
             total = total + size(neuron_g{k}, 2);
             neuron_g{k}(1,:) = neuron_g{k}(1,:) + bund_g(1,k);
             neuron_g{k}(2,:) = neuron_g{k}(2,:) + bund_g(2,k);

@@ -14,10 +14,10 @@ else
     h= fill((x*ones(size(ang))+xp)',(y*ones(size(ang))+yp)',' ', varargin{:});
 end
 
-for k = 1:length(h)
-    if radius(k) > floodThreshold
-        h(k).ZData = ones(size(ang)); 
-    end
-end
+% for k = 1:length(h)
+%     if radius(k) > floodThreshold
+%         h(k).ZData = ones(size(ang)); 
+%     end
+% end
 
 end
