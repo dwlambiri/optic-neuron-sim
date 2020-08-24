@@ -243,6 +243,7 @@ end
         axis equal, hold on
         draw_circles([0 0], M.nerve_r, 200, true, 1, varargin{:});
         if ~no_neuron
+            draw_circles(M.bund(1:2,:)', M.bund(3,:)', 100, true, 1, 'w');
             for kk = 1:length(M.neuron)
                 draw_circles(M.neuron{kk}(1:2,:)', M.neuron{kk}(3,:)', 8, false, 30, varargin{:});
             end
