@@ -31,8 +31,8 @@ f = @(g) (cellfun(@(x) ischar(x) && strcmp(x,g), varargin));
 
 neuron_scale = read_pair('neuron_scale', 30);
 nerve_r = read_pair('nerve_r', 1500);
-bundle_r_range = read_pair('bundle_r_range', [250 300]);
-min_bundles_dis = read_pair('min_bundles_dis', min(bundle_r_range)/10);
+bundle_r_range = read_pair('bundle_r_range', [1499 1500]);
+min_bundles_dis = read_pair('min_bundles_dis', 2);
 %neuron_r_range = read_pair('neuron_r_range', [.75 12]*neuron_scale); % should be [.15 7] um
 neuron_r_range = [0.9 39]; % because of 10 pixels/um and radius
 neuron_dens = read_pair('neuron_dens', 1);
@@ -45,8 +45,30 @@ bundle_speed = read_pair('bundle_speed', .02);
 neuron_speed = read_pair('neuron_speed', 1);
 all_edge_delay = read_pair('edge_delay', 2);
 
+obstaclesOnBundles = true;
+
 
 file = read_pair('file', []);
+
+imageFile = read_pair('image', []);
+oni = [];
+
+
+if isempty(imageFile) 
+    imageFile = 'optic-nerve.png';
+end
+
+if ~exist( imageFile, 'file')
+    fprintf('Cannot load image file %s\n', imageFile);
+    return;
+else
+    oni = imread(imageFile);
+    osz = size(oni);
+    f1 = nerve_r*2/osz(1);
+    onibig = imresize(oni, f1, 'bicubic');
+    M.onibigbw = imbinarize(rgb2gray(onibig),'adaptive');
+end
+
 
 %% Init
 
@@ -87,7 +109,7 @@ if any(f('GUI'))
 else
     n_tries = 20;
     while isempty(bund_g) && n_tries > 0
-        bund_g = fill_circles(0, nerve_r, bundle_dens, bundle_r_range, min_bundles_dis, 4);
+        bund_g = fill_circles(0, nerve_r, bundle_dens, bundle_r_range, min_bundles_dis, 7, ~obstaclesOnBundles, []);
         n_tries = n_tries - 1;
         fprintf("Fill Circles: try# %d\n", n_tries);
     end
@@ -125,7 +147,7 @@ end
         n_tries = 20;
         bund_g = [];
         while isempty(bund_g) && n_tries > 0
-            bund_g = fill_circles(0, nerve_r, bundle_dens, bundle_r_range, min_bundles_dis, 4);
+            bund_g = fill_circles(0, nerve_r, bundle_dens, bundle_r_range, min_bundles_dis, 7, ~obstaclesOnBundles, []);
             n_tries = n_tries - 1;
             fprintf("Fill Circles: try# %d\n", n_tries);
         end
@@ -133,6 +155,11 @@ end
             h_feedback.String = 'Could not fit any bundles within the nerve, please adjust the parameters';
             return;
         end
+
+        osz = size(oni);
+        f1 = nerve_r*2/osz(1);
+        onibig = imresize(oni, f1, 'bicubic');
+        M.onibigbw = imbinarize(rgb2gray(onibig),'adaptive');
 
         M.bund = bund_g;
         M.nerve_r = nerve_r;
@@ -180,7 +207,9 @@ end
         ok = 1;
         h_feedback.String = "Generating Neurons! Please wait ...";
         drawnow;
+        tic;
         generating_neurons();
+        toc;
         plot_model();
         drawnow;
         h_feedback.String = "Generation Done";
@@ -241,14 +270,19 @@ end
         no_neuron = any(ff('no_neuron')); varargin(no_neuron) = [];
 
         axis equal, hold on
-        draw_circles([0 0], M.nerve_r, 200, true, 1, varargin{:});
+        draw_circles([0 0], M.nerve_r, 200, true, false);
+        bundleFill = ~false;
         if ~no_neuron
-            draw_circles(M.bund(1:2,:)', M.bund(3,:)', 100, true, 1, 'w');
-            for kk = 1:length(M.neuron)
-                draw_circles(M.neuron{kk}(1:2,:)', M.neuron{kk}(3,:)', 5, true, 30, varargin{:});
+            draw_circles(M.bund(1:2,:)', M.bund(3,:)', 100, bundleFill, true);
+            mlen = length(M.neuron);
+            for kk = 1:mlen
+                tic;
+                draw_circles(M.neuron{kk}(1:2,:)', M.neuron{kk}(3,:)', 5, ~bundleFill, false);
+                fprintf("Iter %d out of %d\n", kk, mlen);
+                toc;
             end
         else
-           draw_circles(M.bund(1:2,:)', M.bund(3,:)', 100, true, 1, varargin{:}); 
+           draw_circles(M.bund(1:2,:)', M.bund(3,:)', 100, bundleFill, false); 
         end
         drawnow
     end
@@ -308,7 +342,7 @@ end
         for k = 1:n_bunds
             expected_r_avg(k) = radius_avg(bund_g(1:2,k)./nerve_r);
             %neuron_g{k} = fill_circles(expected_r_avg(k), bund_g(3,k), neuron_dens, neuron_r_range, min(neuron_r_range)/2);
-            neuron_g{k} = fill_circles(5, bund_g(3,k), neuron_dens, neuron_r_range, min_bundles_dis/3, 0);
+            neuron_g{k} = fill_circles(5, bund_g(3,k), neuron_dens, neuron_r_range, min_bundles_dis/3, 0, ~obstaclesOnBundles, M.onibigbw);
             total = total + size(neuron_g{k}, 2);
             neuron_g{k}(1,:) = neuron_g{k}(1,:) + bund_g(1,k);
             neuron_g{k}(2,:) = neuron_g{k}(2,:) + bund_g(2,k);
@@ -344,7 +378,8 @@ end
 
         err = false;
         fprintf('\tCreating CSG model... ');
-        whole_geom = [[0 0 M.nerve_r]' M.bund M.neuron{:}];
+        %whole_geom = [[0 0 M.nerve_r]' M.bund M.neuron{:}];
+        whole_geom = [[0 0 M.nerve_r]' M.neuron{:}];
         size(whole_geom)
         %whole_geom
         theModel =  [ones(1,size(whole_geom,2)); whole_geom];
@@ -358,6 +393,7 @@ end
             
             [M.csg.dl, M.csg.bt] = decsg(theModel);
         catch
+            fprintf("Invalid model. Please try again\n"); 
             err = true;
             return;
         end
