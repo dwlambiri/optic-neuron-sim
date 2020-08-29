@@ -5,7 +5,7 @@ study_three_means_only = false;
 
 num_variations = 1000;
 num_diameter_samples = 1000;
-num_cdf_samples = 10000;
+num_cdf_samples = 70;
 
 min_abs_dia = 0.19;
 max_abs_dia = 6.87;
@@ -41,7 +41,7 @@ for k = 1:n_dias
             variation.small_weight(k),...
             variation.mediu_weight(k),...
             variation.large_weight(k));
-    
+            
     diameter_interpolated = interp1(cdf_k, diameter_sample, cdf_interpolated);
     
     out_of_bounds = isnan(diameter_interpolated) > 0;
@@ -52,11 +52,23 @@ for k = 1:n_dias
     
     if study_three_means_only || k == 1 || k == n_dias/2 || k == n_dias
         figure
-        plot(cdf_interpolated, diameter_interpolated)
+        %diameter_interpolated
+        %cdf_interpolated
+        plot(diameter_interpolated, cdf_interpolated)
         title(sprintf('CDF for mean = %.2f um', variation.diameter_mean(k)))
-        ylabel('Axon diameter(um)');
-        xlabel('Cumulative Probability');       
+        xlabel('Axon diameter(um)');
+        ylabel('Cumulative Probability');       
+    
+        figure
+        a = diff(cdf_interpolated)./diff(diameter_interpolated);
+        diameter_interpolated(length(diameter_interpolated)) = [];
+        b = diameter_interpolated;
+        plot(b, a)
+        title(sprintf('PDF for mean = %.2f um', variation.diameter_mean(k)))
+        xlabel('Axon diameter(um)');
+        ylabel('Probability');    
     end
+    
 end
 
 %% Write the table to file

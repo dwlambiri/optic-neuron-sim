@@ -34,9 +34,12 @@ nerve_r = read_pair('nerve_r', 1500);
 bundle_r_range = read_pair('bundle_r_range', [1499 1500]);
 min_bundles_dis = read_pair('min_bundles_dis', 2);
 %neuron_r_range = read_pair('neuron_r_range', [.75 12]*neuron_scale); % should be [.15 7] um
-neuron_r_range = [0.9 39]; % because of 10 pixels/um and radius
+neuron_r_range = [1.5 35]; % because of 10 pixels/um and radius
 neuron_dens = read_pair('neuron_dens', 1);
 refine = read_pair('refine', 0);
+file = read_pair('file', []);
+imageFile = read_pair('image', []);
+
 
 % PROPAGATION ALGO PARAMETERS
 init_insult = read_pair('init_insult', [0 0]);
@@ -47,20 +50,17 @@ all_edge_delay = read_pair('edge_delay', 2);
 
 obstaclesOnBundles = true;
 
-
-file = read_pair('file', []);
-
-imageFile = read_pair('image', []);
-oni = [];
+oni = []; 
 
 
 if isempty(imageFile) 
-    imageFile = 'optic-nerve.png';
+     imageFile = 'optic-nerve.png';
 end
 
 if ~exist( imageFile, 'file')
     fprintf('Cannot load image file %s\n', imageFile);
-    return;
+    M.onibigbw = [];
+    %return;
 else
     oni = imread(imageFile);
     osz = size(oni);
@@ -94,12 +94,14 @@ if any(f('GUI'))
     
     h_feedback = pair_text('Status: ', [.05 .92], []); h_feedback.Position = [.13 .92 .8 .05]; h_feedback.Enable = 'off';
     h_nerv_r = pair_text('Nerve Radius:', [.82 .8], nerve_r);
-    h_min_dis = pair_text('Min Clearance', [.82 .7], min_bundles_dis);
-    h_bundle_r_range = pair_text('Bundle Raduis Range:', [.82 .6], bundle_r_range);
+    h_min_dis = pair_text('Min Clearance', [.82 .75], min_bundles_dis);
+    h_bundle_r_range = pair_text('Bundle Radius Range:', [.82 .7], bundle_r_range);
+    h_neuron_r_range = pair_text('Neuron Radius:', [.82 .65], neuron_r_range);
+    h_image_file = pair_text('Image File:', [.82 .6], imageFile);
     %h_neuron_scale = pair_text('Neuron Scale', [.82 .5], neuron_scale);
     uicontrol('style','pushbutton', 'Units','Normalized', 'position', [.84 .4 .12 .05], 'String', 'Gen Bundles', 'Callback', @genBundle);
-    uicontrol('style','pushbutton', 'Units','Normalized', 'position', [.84 .3 .12 .05], 'String', 'Gen Neurons', 'Callback', @genNeurons);
-    uicontrol('style','pushbutton', 'Units','Normalized', 'position', [.84 .2 .12 .05], 'String', 'Gen Mesh', 'Callback', @genMesh);
+    uicontrol('style','pushbutton', 'Units','Normalized', 'position', [.84 .35 .12 .05], 'String', 'Gen Neurons', 'Callback', @genNeurons);
+    uicontrol('style','pushbutton', 'Units','Normalized', 'position', [.84 .30 .12 .05], 'String', 'Gen Mesh', 'Callback', @genMesh);
     genBundle(0,0);
     
     waitfor(fig_ui);
@@ -109,7 +111,7 @@ if any(f('GUI'))
 else
     n_tries = 20;
     while isempty(bund_g) && n_tries > 0
-        bund_g = fill_circles(0, nerve_r, bundle_dens, bundle_r_range, min_bundles_dis, 7, ~obstaclesOnBundles, []);
+        bund_g = fill_circles(0, nerve_r, bundle_dens, bundle_r_range, min_bundles_dis, 7, ~obstaclesOnBundles, [], false);
         n_tries = n_tries - 1;
         fprintf("Fill Circles: try# %d\n", n_tries);
     end
@@ -126,7 +128,8 @@ end
         t1 = str2num(h_nerv_r.String); %#ok<*ST2NM>
         t2 = str2num(h_min_dis.String);
         t3 = str2num(h_bundle_r_range.String);
-        %t4 = str2num(h_neuron_scale.String);
+        t4 = str2num(h_neuron_r_range.String);
+        t5 = h_image_file.String;
         if isempty(t1) || ~all(size(t1) == [1 1])
             h_feedback.String = 'Bad Nerve Radius!';
             return;
@@ -142,12 +145,13 @@ end
         nerve_r = t1;
         min_bundles_dis = t2;
         bundle_r_range = t3;
-        %neuron_scale = t4;
+        neuron_r_range = t4;
+        imageFile = t5;
 
         n_tries = 20;
         bund_g = [];
         while isempty(bund_g) && n_tries > 0
-            bund_g = fill_circles(0, nerve_r, bundle_dens, bundle_r_range, min_bundles_dis, 7, ~obstaclesOnBundles, []);
+            bund_g = fill_circles(0, nerve_r, bundle_dens, bundle_r_range, min_bundles_dis, 7, ~obstaclesOnBundles, [],false);
             n_tries = n_tries - 1;
             fprintf("Fill Circles: try# %d\n", n_tries);
         end
@@ -156,11 +160,18 @@ end
             return;
         end
 
-        osz = size(oni);
-        f1 = nerve_r*2/osz(1);
-        onibig = imresize(oni, f1, 'bicubic');
-        M.onibigbw = imbinarize(rgb2gray(onibig),'adaptive');
-
+        fprintf("IMAGE FILE = %s\n", t5);
+        if ~exist( imageFile, 'file')
+            fprintf('Cannot load image file %s\n', imageFile);
+            M.onibigbw = [];
+            %return;
+        else
+            oni = imread(imageFile);
+            osz = size(oni);
+            f1 = nerve_r*2/osz(1);
+            onibig = imresize(oni, f1, 'bicubic');
+            M.onibigbw = imbinarize(rgb2gray(onibig),'adaptive');
+        end
         M.bund = bund_g;
         M.nerve_r = nerve_r;
         axis(ax_ui); cla;
@@ -183,7 +194,7 @@ end
     function genMesh(~,~)
         h_feedback.String = "Generating Mesh! Please wait ...";
         drawnow;
-        err = generate_mesh(refine); % Generate Mesh
+        err = generate_delaunay(refine); % Generate Mesh
         if err 
             h_feedback.String = "Error while generating mesh. Please update the geometry!";
             drawnow;
@@ -224,9 +235,7 @@ end
         h_feedback.String = "Simulation Complete! Use 'Close' to terminate the window!";
     end
 
-    function runGUI()
 
-    end
 %% Mesh Generation
         % finds the average neuron size based on statistics in: Pan et. al [2012]
     function r = radius_avg(norm_cent)
@@ -341,8 +350,7 @@ end
         total = 0;
         for k = 1:n_bunds
             expected_r_avg(k) = radius_avg(bund_g(1:2,k)./nerve_r);
-            %neuron_g{k} = fill_circles(expected_r_avg(k), bund_g(3,k), neuron_dens, neuron_r_range, min(neuron_r_range)/2);
-            neuron_g{k} = fill_circles(5, bund_g(3,k), neuron_dens, neuron_r_range, min_bundles_dis/3, 0, ~obstaclesOnBundles, M.onibigbw);
+            neuron_g{k} = fill_circles(5, bund_g(3,k), neuron_dens, neuron_r_range, min_bundles_dis/3, 3, obstaclesOnBundles, M.onibigbw, true);
             total = total + size(neuron_g{k}, 2);
             neuron_g{k}(1,:) = neuron_g{k}(1,:) + bund_g(1,k);
             neuron_g{k}(2,:) = neuron_g{k}(2,:) + bund_g(2,k);
@@ -366,10 +374,8 @@ end
 
     function plot_mesh
         fprintf('Plotting... ');
-        h = pdemesh(M.mesh.p,M.mesh.e,M.mesh.t); axis equal
-        h(2).Visible = 'off';
-        % set(h(2), 'LineWidth', 2, 'Color', [.9 .2 .5]); % Boundaries linewidth and color
-        hold on, M.plot.model('LineWidth', 2);
+        triplot(M.tri,M.whole_x,M.whole_y);
+        %hold on, M.plot.model('LineWidth', 2);
         fprintf('DONE\n');
         drawnow
     end
@@ -425,6 +431,26 @@ end
         M.plot.mesh = @plot_mesh;
         return;
 
+    end
+
+
+    function err = generate_delaunay(refine)
+
+        err = false;
+        fprintf('\tCreating Delaunay mesh... ');
+        %whole_geom = [[0 0 M.nerve_r]' M.bund M.neuron{:}];
+        
+        
+        %ang = (linspace(0,2*pi,100)); % min(round(.5*radius), 15)
+        %xp = nerve_r*cos(ang);
+        %yp = nerve_r*sin(ang);
+        whole_x =  M.neuron{:}(1,:)';
+        whole_y =  M.neuron{:}(2,:)';
+        tri = delaunay(whole_x,whole_y);
+        
+        M.whole_x = whole_x;
+        M.whole_y = whole_y;
+        M.tri = tri;
     end
 
 

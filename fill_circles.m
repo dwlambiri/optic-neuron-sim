@@ -1,29 +1,63 @@
 % Output: first row center_x
 %    second row: center_y
 %    third row: raduis
-function geom = fill_circles(expected_r_avg, main_r, dens, r_range, min_dis, hard, obstacles, circleCenters)
+function geom = fill_circles(mode_r_value, main_r, dens, r_range, min_dis, hard, obstacles, circleCenters, zoned)
 
 Rand = @(siz, m) min(m) + rand(siz)*diff(m);
+RandSq = @(siz, m) [ min(m(1,:))+rand(siz(1),1)*diff(m(1,:)) min(m(2,:))+rand(siz(1),1)*diff(m(2,:))];
+
+max_n_tries = 50;
+
 del = @(x) fprintf(repmat('\b',1,x));
 
 if ~isempty(circleCenters)
-    size(circleCenters) 
+    %size(circleCenters) 
+    obstacles = false;
 end
+
+if zoned
+    zoneSplit = [2/3 1; 1/3 2/3; 0 1/3; -1/3 0; -2/3 -1/3; -1 -2/3];
+    yvalue = [sqrt(5/9); sqrt(8/9); 1 ; 1; sqrt(8/9); sqrt(5/9)];
+    zspace = [1 0.8 0.7 0.7 1 1];
+    nz = size(zoneSplit,1);
+else
+    zoneSplit = [-1 1];
+    nz = 1;
+    zspace = 1;
+end
+
+n_max_circles = zeros(1,nz);
 %% Radius distribution
-if expected_r_avg    
-    n_max_circles = ceil((main_r / expected_r_avg)^2);
+if mode_r_value    
+    %n_max_circles = ceil((main_r / mode_r_value)^2/6);
+    % max circles = (114*1000*Area + 218000)*reduction
+    %variability = 1 + (mod((rand()*100),20))/100;
+    variability = 1.5;
+    n_max = ceil(variability*(114000*3.1415*(main_r/1000)^2 + 218000)*(1/10)^2);
+    
+    per_zone_neurons = [.11 .18 .21 .21 .18 .11];
+    gen_n = ceil(n_max/5);
+    radius_set = zeros(gen_n,6);
+    for i=1:nz
+        radius_set_tmp = skewed_distr(gen_n, 2.4*mode_r_value, 2*mode_r_value, 2*min(r_range), 2*(max(r_range)-3*(i-1)));
+        radius_set_tmp = radius_set_tmp/2;
+        radius_set_tmp = radius_set_tmp(1:length(radius_set_tmp));
+        radius_set_tmp = sort(radius_set_tmp, 'descend');
+        radius_set(1:length(radius_set_tmp),i) = radius_set_tmp;
+        n_max_circles(i) = min(floor(n_max*per_zone_neurons(i)), length(radius_set_tmp));
+    end
+    %size( radius_set)
+    %size( n_max_circles)
     %mean_r_normalized = expected_r_avg / max(r_range);
-    radius_set = skewed_distr(n_max_circles, expected_r_avg, min(r_range), max(r_range));
-    n_max_circles = size(radius_set,1);
-    radius_set = radius_set(1:n_max_circles);
-    radius_set = sort(radius_set, 'descend');
+    %calculate distribution on diameters then divide by 2 for radius
 else
     %n_max_circles = ceil((main_r / mean(r_range))^2); % normalize n_iters based on dens(ity)
     %radius_set = Rand(n_max_circles, r_range);
     v1 = mean(r_range);
     n_max_circles = ceil((main_r / v1)^2);
     %mean_r_normalized = expected_r_avg / max(r_range);
-    radius_set = skewed_distr(n_max_circles, v1, min(r_range), max(r_range));
+    radius_set = skewed_distr(n_max_circles, 2*v1,2*v1, 2*min(r_range), 2*max(r_range));
+    radius_set = radius_set/2;
     n_max_circles = size(radius_set,1);
     radius_set = radius_set(1:n_max_circles);
     radius_set = sort(radius_set, 'descend');
@@ -65,16 +99,16 @@ if obstacles
     [vv, cc] = voronoin([2*main_r*(rand(1,m)-0.5)' 2*main_r*(rand(1,m)-0.5)']);
     
     total = 0;
-    for q=1:length(cc)
-        total = total + length(cc{q})-1;
+    for zoneIter=1:length(cc)
+        total = total + length(cc{zoneIter})-1;
     end
     
     lines = zeros(4,total);
     good = vv < main_r & vv > -main_r;
     good = good(:,1) & good(:,2);
     iter = 1;
-    for q=1:length(cc)
-        face = cc{q};
+    for zoneIter=1:length(cc)
+        face = cc{zoneIter};
         for w=1:length(face)-1
            if ~good(face(w)) || ~good(face(w+1))
                continue;
@@ -110,21 +144,21 @@ if obstacles
         if isempty(b) || isempty(g)
             continue;
         end
-        for k =1:n-1
+        for circleIter =1:n-1
                 if isempty(center)
                     center = b(1,:);
                     radius = g(1);
                 else
                     %fprintf("i = %d, k=%d\n",i, k);
-                    C2Cdis = sqrt((center(:,1) - b(k,1)).^2 + (center(:,2) - b(k,2)).^2);
-                    if all(C2Cdis > radius + g(k))
+                    C2Cdis = sqrt((center(:,1) - b(circleIter,1)).^2 + (center(:,2) - b(circleIter,2)).^2);
+                    if all(C2Cdis > radius + g(circleIter))
                         %tic
-                        center = [center; b(k,:)];
-                        radius = [radius; g(k)];
+                        center = [center; b(circleIter,:)];
+                        radius = [radius; g(circleIter)];
                         rem = rem+1;
                         %toc
                     end
-              end
+                end
         end
     end
     
@@ -145,40 +179,60 @@ if hard < 0
 end
 hard = mod(ceil(hard),4)+1;
 
-zones = [-1 -2/3 -1/3 0 1/3 2/3];
-
 tic
 countNeurons = 0;
 %maxNeurons = ceil(160000* (main_r/10000)^2);
 maxNeurons = 10^6;
 stopPlacing = false;
-for k = 1:n_max_circles
+
+sumradTemp = sumrad2;
+
+for zoneIter = 1:nz
+  zz = zoneSplit(zoneIter,:);
+  sumrad2 = 0;
+  
+  for circleIter = 1:n_max_circles(zoneIter)
     % display
-    new_disp_num = round(100*k/n_max_circles);
+    new_disp_num = round(100*circleIter/n_max_circles(zoneIter));
     if new_disp_num ~= last_disp_num
-        del(nDispChar); nDispChar = fprintf('%d of %d\t', k, n_max_circles);
+        del(nDispChar); nDispChar = fprintf('%d of %d\t', circleIter, n_max_circles(zoneIter));
         last_disp_num = new_disp_num;
     end
 
     %% Create a random circle
-    r = radius_set(k);
+    if nz == 1
+        r = radius_set(circleIter);
+    else
+       r = radius_set(circleIter, zoneIter); 
+    end
 
     if ~isempty(radius)
-        if (main_r^2 - sumrad2 - r^2)<=0 
-            continue;
-        end
+       if (main_r^2*zspace(zoneIter)/nz - sumrad2 - r^2)<=0 
+           continue;
+       end
     end
-    emptySpace = main_r^2 - sumrad2;
+    
+    emptySpace = main_r^2*zspace(zoneIter)/nz - sumrad2;
     if emptySpace == 0
         break;
     end
 
-    n_tries = ceil((main_r^2/emptySpace)^hard);
+    %n_tries = (20-zoneIter)*ceil((main_r^2*zspace(zoneIter)/nz/emptySpace)^(max(0,hard)));
+    
+    n_tries = max_n_tries;
+    if n_tries > max_n_tries
+        n_tries = max_n_tries;
+    end
+    
     %fprintf(" Hard = %d Tries = %d\n", hard, n_tries);
     %n_tries = (dens + k);
-    center_set = Rand([n_tries 2], (main_r-r)*[-1 1]);
-    for kk = 1:n_tries % tring to fit the circle with raduis r
-        c = center_set(kk,:);
+    if nz == 1
+        center_set = Rand([n_tries 2], (main_r-r)*[-1 1]);
+    else
+        center_set = RandSq([n_tries 2], (main_r-r)*[zz; -1*yvalue(zoneIter) yvalue(zoneIter)]);
+    end
+    for tryIter = 1:n_tries % tring to fit the circle with radius r
+        c = center_set(tryIter,:);
         % Check if non overlapping
         if (norm(c) + r  < main_r)
             if isempty(radius)
@@ -237,6 +291,7 @@ for k = 1:n_max_circles
     if stopPlacing == true
          break;
     end
+  end
 end
 toc
 del(nDispChar);
@@ -263,7 +318,10 @@ if isempty(center)
 end
 geom = [center radius]';
 fprintf("Ratio of filled space %0.2f\n",sumrad2/(main_r^2-ra));
-fprintf('Expected radius %f min rad %f max rad %f\n', expected_r_avg, min(r_range), max(r_range));
-fprintf("Average radius %f, min %f, max %f std %f\n", mean(radius), min(radius), max(radius), std(radius));
+fprintf('Expected Radius Mode %f, Median %f, Min %f, Max %f\n', mode_r_value, 1.2*mode_r_value, min(r_range), max(r_range));
+[N,P]= hist(radius, 60);
+idx = find(N==max(N));
+fprintf("Actual Radius   Mode  %f, Median %f, Min %f, Max %f std %f\n", P(idx), median(radius), min(radius), max(radius), std(radius));
+fprintf('Total Placed Neurons %d\n', length(radius));
 end
 
