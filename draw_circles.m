@@ -1,4 +1,10 @@
-function draw_circles(center, radius, res, doNotFill, allWhite)
+function draw_circles(fig, center, radius, res, doNotFill, allWhite)
+
+if isempty(fig)
+    figure;
+else
+    figure(fig);
+end
 
 x = center(:,1);
 y = center(:,2);

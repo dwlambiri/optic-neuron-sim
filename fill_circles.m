@@ -1,7 +1,7 @@
 % Output: first row center_x
 %    second row: center_y
 %    third row: raduis
-function geom = fill_circles(mode_r_value, main_r, dens, r_range, min_dis, hard, obstacles, circleCenters, zoned)
+function geom = fill_circles(median_r_value, main_r, dens, r_range, min_dis, hard, obstacles, circleCenters, zoned)
 
 Rand = @(siz, m) min(m) + rand(siz)*diff(m);
 RandSq = @(siz, m) [ min(m(1,:))+rand(siz(1),1)*diff(m(1,:)) min(m(2,:))+rand(siz(1),1)*diff(m(2,:))];
@@ -28,18 +28,31 @@ end
 
 n_max_circles = zeros(1,nz);
 %% Radius distribution
-if mode_r_value    
+if median_r_value    
     %n_max_circles = ceil((main_r / mode_r_value)^2/6);
     % max circles = (114*1000*Area + 218000)*reduction
     %variability = 1 + (mod((rand()*100),20))/100;
     variability = 1.5;
     n_max = ceil(variability*(114000*3.1415*(main_r/1000)^2 + 218000)*(1/10)^2);
-    
-    per_zone_neurons = [.11 .18 .21 .21 .18 .11];
-    gen_n = ceil(n_max/5);
-    radius_set = zeros(gen_n,6);
+    if zoned
+        per_zone_neurons = [.11 .18 .21 .21 .18 .11];
+        divider = 5;
+    else
+        per_zone_neurons = 1;
+        divider = 1;
+    end
+    gen_n = ceil(n_max/divider);
+    radius_set = zeros(gen_n,nz);
     for i=1:nz
-        radius_set_tmp = skewed_distr(gen_n, 2.4*mode_r_value, 2*mode_r_value, 2*min(r_range), 2*(max(r_range)-3*(i-1)));
+        %skewed_distr(siz, median_r, mode_r, min_r, max_r)
+        if nz == 1
+            radius_set_tmp = skewed_distr(gen_n, 2*median_r_value, 2*(median_r_value-1), 2*min(r_range), 2*(max(r_range)-3*(i-1)));
+        else
+            % use the formula from Pan figure 5 but for median not average!
+            % median *diameter* - 0.0639*i + 0.8839 (um) -> for pixels multiply by 10
+            % mode is minus 0.2 um is minux 2 pixels
+            radius_set_tmp = skewed_distr(gen_n, 0.639*i +8.838, 0.639*i +6.838 , 2*min(r_range), 2*(max(r_range)-3*(i-1)));
+        end
         radius_set_tmp = radius_set_tmp/2;
         radius_set_tmp = radius_set_tmp(1:length(radius_set_tmp));
         radius_set_tmp = sort(radius_set_tmp, 'descend');
@@ -217,9 +230,11 @@ for zoneIter = 1:nz
         break;
     end
 
-    %n_tries = (20-zoneIter)*ceil((main_r^2*zspace(zoneIter)/nz/emptySpace)^(max(0,hard)));
-    
-    n_tries = max_n_tries;
+    if zoned == false
+        n_tries = ceil((main_r^2*zspace(zoneIter)/nz/emptySpace)^(max(0,hard)));
+    else
+        n_tries = max_n_tries;
+    end
     if n_tries > max_n_tries
         n_tries = max_n_tries;
     end
@@ -316,12 +331,12 @@ if isempty(center)
     radius = [radius; r];
     sumrad2 = sumrad2 + r^2;
 end
-geom = [center radius]';
+geom = [center radius zeros(length(radius),1)]';
 fprintf("Ratio of filled space %0.2f\n",sumrad2/(main_r^2-ra));
-fprintf('Expected Radius Mode %f, Median %f, Min %f, Max %f\n', mode_r_value, 1.2*mode_r_value, min(r_range), max(r_range));
+fprintf('Expected Radius Median %f, Mode %f, Min %f, Max %f\n', median_r_value, median_r_value-1, min(r_range), max(r_range));
 [N,P]= hist(radius, 60);
 idx = find(N==max(N));
-fprintf("Actual Radius   Mode  %f, Median %f, Min %f, Max %f std %f\n", P(idx), median(radius), min(radius), max(radius), std(radius));
+fprintf("Actual Radius   Median  %f, Mode %f, Min %f, Max %f std %f\n", median(radius), P(idx), min(radius), max(radius), std(radius));
 fprintf('Total Placed Neurons %d\n', length(radius));
 end
 
