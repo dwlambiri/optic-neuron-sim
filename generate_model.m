@@ -32,13 +32,13 @@ f = @(g) (cellfun(@(x) ischar(x) && strcmp(x,g), varargin));
 neuron_scale = read_pair('neuron_scale', 30);
 nerve_r = read_pair('nerve_r', 1500);
 bundle_r_range = read_pair('bundle_r_range', [1499 1500]);
-min_bundles_dis = read_pair('min_bundles_dis', 2);
-%neuron_r_range = read_pair('neuron_r_range', [.75 12]*neuron_scale); % should be [.15 7] um
-neuron_r_range = [1.5 35]; % because of 10 pixels/um and radius
+min_bundles_dis = read_pair('min_bundles_dis', 0);
+neuron_r_range = [1.5 30]; % because of 10 pixels/um and radius
 neuron_dens = read_pair('neuron_dens', 1);
 refine = read_pair('refine', 0);
 file = read_pair('file', []);
 imageFile = read_pair('image', []);
+mielinWidth = read_pair('mielin', 5);
 
 if any(f('zoned'))
     zoned_r = true;
@@ -111,6 +111,7 @@ if any(f('GUI'))
     h_bundle_r_range = pair_text('Bundle Radius Range:', [.82 .7], bundle_r_range);
     h_neuron_r_range = pair_text('Neuron Radius:', [.82 .65], neuron_r_range);
     h_image_file = pair_text('Image File:', [.82 .6], imageFile);
+    h_mielin = pair_text('Max Mielin Width:', [.82 .55], mielinWidth);
     %h_neuron_scale = pair_text('Neuron Scale', [.82 .5], neuron_scale);
     uicontrol('style','pushbutton', 'Units','Normalized', 'position', [.84 .4 .12 .05], 'String', 'Gen Bundles', 'Callback', @genBundle);
     uicontrol('style','pushbutton', 'Units','Normalized', 'position', [.84 .35 .12 .05], 'String', 'Gen Neurons', 'Callback', @genNeurons);
@@ -124,7 +125,7 @@ if any(f('GUI'))
 else
     n_tries = 20;
     while isempty(bund_g) && n_tries > 0
-        bund_g = fill_circles(0, nerve_r, bundle_dens, bundle_r_range, min_bundles_dis, 7, ~obstaclesOnBundles, [], false);
+        bund_g = fill_circles(0, nerve_r, bundle_dens, bundle_r_range, min_bundles_dis, 7, ~obstaclesOnBundles, [], false, 0);
         n_tries = n_tries - 1;
         fprintf("Fill Circles: try# %d\n", n_tries);
     end
@@ -143,6 +144,7 @@ end
         t3 = str2num(h_bundle_r_range.String);
         t4 = str2num(h_neuron_r_range.String);
         t5 = h_image_file.String;
+        t6 = str2num(h_mielin.String);
         if isempty(t1) || ~all(size(t1) == [1 1])
             h_feedback.String = 'Bad Nerve Radius!';
             return;
@@ -155,16 +157,20 @@ end
             h_feedback.String = 'Bad Bundle Radius Range!';
             return;
         end
+        if isempty(t6)
+           t6 = 0; 
+        end
         nerve_r = t1;
         min_bundles_dis = t2;
         bundle_r_range = t3;
         neuron_r_range = t4;
         imageFile = t5;
-
+        mielinWidth = t6;
+        
         n_tries = 20;
         bund_g = [];
         while isempty(bund_g) && n_tries > 0
-            bund_g = fill_circles(0, nerve_r, bundle_dens, bundle_r_range, min_bundles_dis, 7, ~obstaclesOnBundles, [],false);
+            bund_g = fill_circles(0, nerve_r, bundle_dens, bundle_r_range, min_bundles_dis, 7, ~obstaclesOnBundles, [],false, 0);
             n_tries = n_tries - 1;
             fprintf("Fill Circles: try# %d\n", n_tries);
         end
@@ -237,7 +243,8 @@ end
         toc;
         %plot_model();
         figure(M.fig_ui);
-        imshow(M.spaceMap, 'XData', [-1500 1500], 'YData', [-1500, 1500]);
+        image(M.pixelMap, 'XData', [-1*nerve_r nerve_r], 'YData', [-1*nerve_r, nerve_r]);
+        colorbar('East');
         drawnow;
         h_feedback.String = "Generation Done";
 %         drawnow;
@@ -379,7 +386,7 @@ end
         total = 0;
         for k = 1:n_bunds
             expected_r_avg(k) = radius_avg(bund_g(1:2,k)./nerve_r);
-            neuron_g{k} = fill_circles(5, bund_g(3,k), neuron_dens, neuron_r_range, min_bundles_dis/3, 3, obstaclesOnBundles, M.onibigbw, zoned_r);
+            neuron_g{k} = fill_circles(5, bund_g(3,k), neuron_dens, neuron_r_range, min_bundles_dis/3, 3, ~obstaclesOnBundles, M.onibigbw, zoned_r, mielinWidth);
             total = total + size(neuron_g{k}, 2);
             neuron_g{k}(1,:) = neuron_g{k}(1,:) + bund_g(1,k);
             neuron_g{k}(2,:) = neuron_g{k}(2,:) + bund_g(2,k);
@@ -387,7 +394,7 @@ end
         fprintf('Total neurons %d\n', total);
         
         fprintf('Generating Pixel Map\n');
-        pixelMap = 32*ones(2*nerve_r, 2*nerve_r);
+        pixelMap = zeros(2*nerve_r, 2*nerve_r);
         spaceMap = -1*ones(2*nerve_r, 2*nerve_r);
         concentrationMap1 = zeros(2*nerve_r, 2*nerve_r);
         concentrationMap2 = zeros(2*nerve_r, 2*nerve_r);
@@ -402,6 +409,7 @@ end
                 end
             end
         end
+        
 
         bconst = 500000; % [DWL] need some formula based on bundles; large enough for now.
         for k = 1:n_bunds
@@ -410,16 +418,21 @@ end
                 xc = neuron_g{k}(1,q);
                 yc = neuron_g{k}(2,q);
                 r  = neuron_g{k}(3,q);
-                xmin = ceil(xc+nerve_r - r);
-                xmax = ceil(xc+nerve_r + r);
-                ymin = ceil(nerve_r -yc - r);
-                ymax = ceil(nerve_r -yc + r);
+                m  = neuron_g{k}(4,q);
+                xmin = ceil(xc+nerve_r - (r+m));
+                xmax = ceil(xc+nerve_r + (r+m));
+                ymin = ceil(nerve_r -yc - (r+m));
+                ymax = ceil(nerve_r -yc + (r+m));
                 xcn = ceil(xc+nerve_r);
                 ycn = ceil(nerve_r - yc);
                 for i = ymin:ymax
                     for j = xmin:xmax
-                        if sqrt((i-ycn)^2+(j-xcn)^2) <= r
-                            pixelMap(i,j) = 255;
+                        if sqrt((i-ycn)^2+(j-xcn)^2) <= (r+m)
+                            if sqrt((i-ycn)^2+(j-xcn)^2) >= (r-m)
+                               pixelMap(i,j) = 100;
+                            else
+                               pixelMap(i,j) = 250; 
+                            end
                             spaceMap(i, j ) = (k-1)*bconst + q; % neuron index
                         end
                     end
@@ -437,18 +450,12 @@ end
                     qqq = floor(spaceMap(i,j)/bconst)+1;
                     idx = mod(spaceMap(i,j), bconst);
                     neuron = neuron_g{qqq}(:,idx);
-                    
-                    if neuron(3) < 15
-                        poxMap(i,j) = 1;
-                        scavMap(i,j) = -0.2;
-                    else
-                        poxMap(i,j) = 1;
-                        scavMap(i,j) = -2;
-                    end
+                    poxMap(i,j) = 10/neuron(3);
+                    scavMap(i,j) = (1-10^-2);
                 else
                     %pixel is part of connecting tissue
                     poxMap(i,j) = 0;
-                    scavMap(i,j) = -10^-2;
+                    scavMap(i,j) = (1-10^-3);
                 end
             end
         end
@@ -570,8 +577,8 @@ end
         init_insult(1)
         init_insult(2)
         
-        xinsult = 1500;
-        yinsult = 1500;
+        xinsult = ceil(nerve_r/4);
+        yinsult = nerve_r;
         
         M.cMap1(yinsult, xinsult) = 100;
         M.pixelMap = zeros(2*M.nerve_r, 2*M.nerve_r);
@@ -589,6 +596,8 @@ end
            return;
         end
         
+        deathValue = 180;
+        
         for frame = 1: 1480
             xminconst = false;
             xmaxconst = false;
@@ -597,9 +606,9 @@ end
             for x = xmin-1: xmax+1
                 linechange = false;
                 for y = ymin-1: ymax+1
-%                     if M.spaceMap(y,x) < 0
-%                         continue;
-%                     end
+                    if M.spaceMap(y,x) < 0
+                        continue;
+                    end
                     diffusion = M.diffInside*(M.cMap1(y-1,x)-M.cMap1(y,x)) +  M.diffInside*(M.cMap1(y+1,x)-M.cMap1(y,x)) +  M.diffInside*(M.cMap1(y,x-1)-M.cMap1(y,x)) + M.diffInside*(M.cMap1(y,x+1)-M.cMap1(y,x));
                     if M.cMap1(y,x) == 0 && diffusion == 0
                         continue;
@@ -611,7 +620,13 @@ end
                     if y == (ymax+1)
                         anymaxy = true;
                     end
-                    M.cMap2(y,x) = max(0,M.cMap1(y,x)+ M.poxMap(y,x) + M.scavMap(y,x) + diffusion) ;
+                    M.cMap2(y,x) = (M.cMap1(y,x)+ M.poxMap(y,x) + diffusion)*M.scavMap(y,x);
+                    if M.cMap2(y,x) < 0.1
+                        M.cMap2(y,x) = 0;
+                    end
+                    if M.cMap2(y,x) > deathValue
+                        M.poxMap(y,x) = 0;
+                    end
                 end
                 if x == xmin-1 && linechange == false
                     xminconst = true;
@@ -649,9 +664,9 @@ end
             anymaxy = false;
             for x = xmin-1: xmax+1
                 for y = ymin-1: ymax+1
-%                     if M.spaceMap(y,x) < 0
-%                         continue;
-%                     end
+                    if M.spaceMap(y,x) < 0
+                        continue;
+                    end
                     diffusion = M.diffInside*(M.cMap2(y-1,x)-M.cMap2(y,x)) +  M.diffInside*(M.cMap2(y+1,x)-M.cMap2(y,x)) +  M.diffInside*(M.cMap2(y,x-1)-M.cMap2(y,x)) + M.diffInside*(M.cMap2(y,x+1)-M.cMap2(y,x));
                     if M.cMap2(y,x) == 0 && diffusion == 0
                         continue;
@@ -662,7 +677,13 @@ end
                     if y == (ymax+1)
                         anymaxy = true;
                     end
-                    M.cMap1(y,x) = max(0,M.cMap2(y,x)+ M.poxMap(y,x) + M.scavMap(y,x) + diffusion) ;
+                    M.cMap1(y,x) = (M.cMap2(y,x)+ M.poxMap(y,x) + diffusion)*M.scavMap(y,x) ;
+                    if M.cMap1(y,x) < 0.1
+                        M.cMap1(y,x) = 0;
+                    end
+                    if M.cMap1(y,x) > deathValue
+                        M.poxMap(y,x) = 0;
+                    end
                 end
                 if x == xmin-1 && linechange == false
                     xminconst = true;
@@ -692,9 +713,9 @@ end
             
             fprintf('frame %d [2] xmin=%d, xmax=%d, ymin=%d, ymax= %d\n', frame, xmin, xmax, ymin, ymax);
             
-            if mod(frame, 40) == 1
+            if mod(frame, 10) == 1
                 figure(M.fig_ui);
-                image(M.cMap1, 'XData', [-1500 1500], 'YData', [-1500, 1500]);                 
+                image(M.cMap1, 'XData', [-1*nerve_r nerve_r], 'YData', [-1*nerve_r, nerve_r]);                 
                 colorbar('East');
                 drawnow;
             end
