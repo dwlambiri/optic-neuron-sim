@@ -39,6 +39,17 @@ refine = read_pair('refine', 0);
 file = read_pair('file', []);
 imageFile = read_pair('image', []);
 mielinWidth = read_pair('mielin', 5);
+insultAmount = read_pair('insult_amount', 25);
+insultRadius = read_pair('insult_radius', 100);
+scavIn = read_pair('scavenging_intra', 0.01);
+scavOut = read_pair('scavenging_out', 0.001);
+prodAmount = read_pair('production_amount', 0.01);
+deathThr   = read_pair('death_threashold', 22);
+deathRelease = read_pair('death_release', 10000);
+diffusionInside = read_pair('diffusion_inside', 0.02);
+diffusionOutside = read_pair('diffusion_outside', 0.02);
+diffusionBoundary = read_pair('diffusion_boundary', 0.02);
+simIterations = read_pair('iterations', 5000);
 
 if any(f('zoned'))
     zoned_r = true;
@@ -47,19 +58,15 @@ else
 end
 
 % PROPAGATION ALGO PARAMETERS
-init_insult = read_pair('init_insult', [700 700]);
-medium_speed = read_pair('medium_speed', .02);
-bundle_speed = read_pair('bundle_speed', .02);
-neuron_speed = read_pair('neuron_speed', 1);
-all_edge_delay = read_pair('edge_delay', 2);
+init_insult = read_pair('init_insult', [ceil(nerve_r/4) nerve_r]);
 
 obstaclesOnBundles = true;
 
-oni = []; 
+oni = [];
 
 
-if isempty(imageFile) 
-     imageFile = 'optic-nerve.png';
+if isempty(imageFile)
+    imageFile = 'optic-nerve.png';
 end
 
 if ~exist( imageFile, 'file')
@@ -85,6 +92,8 @@ if ~isempty(file)
         if any(f('plot_model')), M.plot.model(); end
         return;
     end
+else 
+    file_full_addr = '';
 end
 
 % Create bundles
@@ -158,7 +167,7 @@ end
             return;
         end
         if isempty(t6)
-           t6 = 0; 
+            t6 = 0;
         end
         nerve_r = t1;
         min_bundles_dis = t2;
@@ -178,7 +187,7 @@ end
             h_feedback.String = 'Could not fit any bundles within the nerve, please adjust the parameters';
             return;
         end
-
+        
         fprintf("IMAGE FILE = %s\n", t5);
         if ~exist( imageFile, 'file')
             fprintf('Cannot load image file %s\n', imageFile);
@@ -209,12 +218,12 @@ end
         uicontrol('style','edit', 'Units','Normalized', 'position', [pos .08 .05], 'String', txt, 'Enable', 'off', 'BackgroundColor', [0.9400 0.9400 0.9400]);
         h = uicontrol('style','edit', 'Units','Normalized', 'position', [pos+[.08 0] .08 .05], 'String', num2str(def));
     end
-     
+
     function genMesh(~,~)
         h_feedback.String = "Generating Mesh! Please wait ...";
         drawnow;
         err = generate_delaunay(refine); % Generate Mesh
-        if err 
+        if err
             h_feedback.String = "Error while generating mesh. Please update the geometry!";
             drawnow;
         else
@@ -241,21 +250,17 @@ end
         tic;
         generating_neurons();
         toc;
-        %plot_model();
-        figure(M.fig_ui);
-        image(M.pixelMap, 'XData', [-1*nerve_r nerve_r], 'YData', [-1*nerve_r, nerve_r]);
-        colorbar('East');
-        drawnow;
+        plot_model('pixelmap');
         h_feedback.String = "Generation Done";
-%         drawnow;
-%         figure(M.fig_ui);
-%         ip = plot(init_insult(1), init_insult(2), 'r.', 'markerSize', 20, 'HitTest', 'off');
-%         set(gca, 'ButtonDownFcn', @btn_Down);
-%         h_feedback.String = "Please select the starting point of the injury!";
-%         drawnow;
+        %         drawnow;
+        %         figure(M.fig_ui);
+        %         ip = plot(init_insult(1), init_insult(2), 'r.', 'markerSize', 20, 'HitTest', 'off');
+        %         set(gca, 'ButtonDownFcn', @btn_Down);
+        %         h_feedback.String = "Please select the starting point of the injury!";
+        %         drawnow;
         uicontrol('style','pushbutton', 'Units','Normalized', 'position', [.84 .1 .12 .05], 'String', 'RunAlgo', 'Callback', @RunAlgo);
-
-
+        
+        
     end
 
     function RunAlgo(~,~)
@@ -271,7 +276,7 @@ end
 
 
 %% Mesh Generation
-        % finds the average neuron size based on statistics in: Pan et. al [2012]
+% finds the average neuron size based on statistics in: Pan et. al [2012]
     function r = radius_avg(norm_cent)
         if ~isfield(M, 'r_dist')
             % Radius average in different regions
@@ -283,7 +288,7 @@ end
                 1.01 1.1    1.1     1.22    1.22    1.21  ] * neuron_scale;
             % imshow(-v, [], 'initialmagnification', 6000)
             stp = .01; % Interpolation step
-
+            
             [x, y] = meshgrid(-1:(2/5):1);
             [xq, yq] = meshgrid(-1:stp:1); % Interpolate data
             r_avg = interp2(x,y,v,xq,yq);
@@ -293,16 +298,16 @@ end
             M.r_dist.yq = yq;
             M.r_dist.r_avg = r_avg;
         end
-
+        
         dis2 = ((M.r_dist.xq-norm_cent(1)).^2 + (M.r_dist.yq-norm_cent(2)).^2);
         [~, ix] = min(dis2(:));
-
+        
         r = M.r_dist.r_avg(ix);
     end
 
 
     function plot_avg_r
-%         imagesc(M.r_dist.r_avg);
+        %         imagesc(M.r_dist.r_avg);
         surf(M.r_dist.xq, M.r_dist.yq, M.r_dist.r_avg, 'edgecolor', 'red'); view(0, 90);
         axis equal
     end
@@ -311,7 +316,19 @@ end
     function plot_model(varargin)
         ff = @(f) (cellfun(@(x) ischar(x) && strcmp(x,f), varargin));
         no_neuron = any(ff('no_neuron')); varargin(no_neuron) = [];
-
+        
+        figure(M.fig_ui);
+        % draw pixel map
+        if any(ff('pixelmap'))
+            axis equal, hold on
+            imagesc(M.pixelMap, 'XData', [-1*nerve_r nerve_r], 'YData', [-1*nerve_r, nerve_r]);
+            axis('on', 'image');
+            hold off;
+            drawnow
+            return;
+        end
+        
+        % draw circles
         axis equal, hold on
         draw_circles(M.fig_ui, [0 0], M.nerve_r, 200, true, false);
         bundleFill = ~false;
@@ -325,7 +342,7 @@ end
                 toc;
             end
         else
-           draw_circles(M.fig_ui, M.bund(1:2,:)', M.bund(3,:)', 100, bundleFill, false); 
+            draw_circles(M.fig_ui, M.bund(1:2,:)', M.bund(3,:)', 100, bundleFill, false);
         end
         hold off;
         drawnow
@@ -359,7 +376,7 @@ end
             xlim(M.neuron_r_range);
         end
         drawnow
-
+        
         function size_changed(~,~)
             pos = plotboxpos(par_ax);
             for id = 1:length(M.neuron)
@@ -372,16 +389,16 @@ end
 
 
     function generating_neurons
-
+        
         fprintf('Generating model:\n');
-
+        
         % whole_geom = [[0 0 nerve_r]' bund_g];
         n_bunds = size(bund_g, 2);
         fprintf('\tNumber of bundles: %d\n', n_bunds);
-
+        
         neuron_g = cell(n_bunds,1);
         expected_r_avg = zeros(n_bunds,1);
-
+        
         fprintf('\tNumber of neurons: ');
         total = 0;
         for k = 1:n_bunds
@@ -394,7 +411,7 @@ end
         fprintf('Total neurons %d\n', total);
         
         fprintf('Generating Pixel Map\n');
-        pixelMap = zeros(2*nerve_r, 2*nerve_r);
+        pixelMap = cat(3, zeros(2*nerve_r, 2*nerve_r), zeros(2*nerve_r, 2*nerve_r),zeros(2*nerve_r, 2*nerve_r));
         spaceMap = -1*ones(2*nerve_r, 2*nerve_r);
         concentrationMap1 = zeros(2*nerve_r, 2*nerve_r);
         concentrationMap2 = zeros(2*nerve_r, 2*nerve_r);
@@ -404,13 +421,13 @@ end
         for i = 1: 2*nerve_r
             for j = 1: 2*nerve_r
                 if sqrt((i-nerve_r)^2+(j-nerve_r)^2) <= nerve_r
-                    pixelMap(i,j) = 0;
+                    %pixelMap(i,j,:) = 0.4;
                     spaceMap(i,j) = 0;
                 end
             end
         end
         
-
+        
         bconst = 500000; % [DWL] need some formula based on bundles; large enough for now.
         for k = 1:n_bunds
             lb  = size(neuron_g{k}, 2);
@@ -429,20 +446,24 @@ end
                     for j = xmin:xmax
                         if sqrt((i-ycn)^2+(j-xcn)^2) <= (r+m)
                             if sqrt((i-ycn)^2+(j-xcn)^2) >= (r-m)
-                               pixelMap(i,j) = 100;
+                                pixelMap(i,j,1) = 0;
+                                pixelMap(i,j,2) = 0.8;
+                                pixelMap(i,j,3) = 0;
                             else
-                               pixelMap(i,j) = 250; 
+                                pixelMap(i,j,1) = 0;
+                                pixelMap(i,j,2) = 1;
+                                pixelMap(i,j,3) = 0;
                             end
                             spaceMap(i, j ) = (k-1)*bconst + q; % neuron index
                         end
                     end
-                end              
+                end
             end
         end
         
         for i = 1: 2*nerve_r
             for j = 1: 2*nerve_r
-                if spaceMap(i,j) < 0 
+                if spaceMap(i,j) < 0
                     continue
                 end
                 if spaceMap(i,j) > 0
@@ -450,12 +471,12 @@ end
                     qqq = floor(spaceMap(i,j)/bconst)+1;
                     idx = mod(spaceMap(i,j), bconst);
                     neuron = neuron_g{qqq}(:,idx);
-                    poxMap(i,j) = 10/neuron(3);
-                    scavMap(i,j) = (1-10^-2);
+                    poxMap(i,j) = prodAmount/neuron(3);
+                    scavMap(i,j) = (1-scavIn);
                 else
                     %pixel is part of connecting tissue
                     poxMap(i,j) = 0;
-                    scavMap(i,j) = (1-10^-3);
+                    scavMap(i,j) = (1-scavOut);
                 end
             end
         end
@@ -474,17 +495,17 @@ end
         M.cMap2 = concentrationMap2;
         M.poxMap = poxMap;
         M.scavMap = scavMap;
-        M.diffInside = 0.2;
+        M.diffInside = diffusionInside;
         M.diffBorder = 0.02;
         M.diffOutside = 0.2;
         M.create_csg = @create_csg;
         M.plot.model = @plot_model;
         M.plot.histogram = @plot_histogram;
         M.plot.avg_r = @plot_avg_r;
-
+        
         M.file_full_addr = file_full_addr;
         M.save = @(M) save(M.file_full_addr, 'M');
-
+        
     end
 
     function plot_mesh
@@ -495,62 +516,9 @@ end
         drawnow
     end
 
-    function err = generate_mesh(refine)
 
-        err = false;
-        fprintf('\tCreating CSG model... ');
-        %whole_geom = [[0 0 M.nerve_r]' M.bund M.neuron{:}];
-        whole_geom = [[0 0 M.nerve_r]' M.neuron{:}];
-        size(whole_geom)
-        %whole_geom
-        theModel =  [ones(1,size(whole_geom,2)); whole_geom];
-        gstat = csgchk(theModel);
-        if any(gstat)
-           fprintf("Invalid model. Please try again\n"); 
-           err = true;
-           return;
-        end
-        try
-            
-            [M.csg.dl, M.csg.bt] = decsg(theModel);
-        catch
-            fprintf("Invalid model. Please try again\n"); 
-            err = true;
-            return;
-        end
-        fprintf('DONE\n');
-
-        dl = M.csg.dl;
-
-        fprintf('Generating mesh... ');
-        try
-            [p,e,t] = initmesh(dl);
-        catch
-            err = true;
-            return;
-        end
-        fprintf('DONE\n');
-
-        if refine > 0
-            fprintf('Refining mesh... ');
-            for k = 1:refine
-                [p,e,t] = refinemesh(dl, p,e,t);
-            end
-            fprintf('DONE\n');
-        end
-
-        p = jigglemesh(p,e,t);
-
-        M.mesh.p = p; M.mesh.e = e; M.mesh.t = t;
-
-        M.plot.mesh = @plot_mesh;
-        return;
-
-    end
-
-
-    function err = generate_delaunay(refine)
-
+    function err = generate_delaunay()
+        
         err = false;
         fprintf('\tCreating Delaunay mesh... ');
         %whole_geom = [[0 0 M.nerve_r]' M.bund M.neuron{:}];
@@ -574,179 +542,225 @@ end
         
         %neuron_speed_formula = @(R) 2./R; % 2/R, For  2/R^2  write this code   ->>  2./R.^2
         
-        init_insult(1)
-        init_insult(2)
+        xinsult = init_insult(1);
+        yinsult = init_insult(2);
         
-        xinsult = ceil(nerve_r/4);
-        yinsult = nerve_r;
         
-        M.cMap1(yinsult, xinsult) = 100;
-        M.pixelMap = zeros(2*M.nerve_r, 2*M.nerve_r);
-        M.pixelMap(yinsult, xinsult) = 1;
         
-        cmin = 4;
+        for i=1:2*insultRadius
+           for j=1:2*insultRadius
+               if sqrt((i-insultRadius)^2+(j-insultRadius)^2) > insultRadius
+                   continue;
+               end
+            M.cMap1(yinsult-insultRadius+i, xinsult-insultRadius+j) = insultAmount;
+            M.pixelMap(yinsult-insultRadius+i, xinsult-insultRadius+j, 1) = 1;
+           end
+        end
         
-        xmin = max(xinsult, cmin);
-        xmax = min(xinsult, 2*M.nerve_r - cmin);
-        ymin = max(yinsult, cmin);
-        ymax = min(yinsult, 2*M.nerve_r - cmin);
+%        cmin = 4;
+        
+%         xmin = max(xinsult, cmin);
+%         xmax = min(xinsult, 2*M.nerve_r - cmin);
+%         ymin = max(yinsult, cmin);
+%         ymax = min(yinsult, 2*M.nerve_r - cmin);
         
         if M.spaceMap(yinsult,xinsult) < 0
-           fprintf('Insult position is outside the optical nerve x=%d, y=%d\n', xinsult, yinsult);
-           return;
+            fprintf('Insult position is outside the optical nerve x=%d, y=%d\n', xinsult, yinsult);
+            return;
         end
         
-        deathValue = 180;
+        % deathValue = 180;
+        %
+        %         for frame = 1: 1480
+        %             xminconst = false;
+        %             xmaxconst = false;
+        %             anyminy = false;
+        %             anymaxy = false;
+        %             for x = xmin-1: xmax+1
+        %                 linechange = false;
+        %                 for y = ymin-1: ymax+1
+        %                     if M.spaceMap(y,x) < 0
+        %                         continue;
+        %                     end
+        %                     diffusion = M.diffInside*(M.cMap1(y-1,x)-M.cMap1(y,x)) +  M.diffInside*(M.cMap1(y+1,x)-M.cMap1(y,x)) +  M.diffInside*(M.cMap1(y,x-1)-M.cMap1(y,x)) + M.diffInside*(M.cMap1(y,x+1)-M.cMap1(y,x));
+        %                     if M.cMap1(y,x) == 0 && diffusion == 0
+        %                         continue;
+        %                     end
+        %                     linechange = true;
+        %                     if y == (ymin -1)
+        %                         anyminy = true;
+        %                     end
+        %                     if y == (ymax+1)
+        %                         anymaxy = true;
+        %                     end
+        %                     M.cMap2(y,x) = (M.cMap1(y,x)+ M.poxMap(y,x) + diffusion)*M.scavMap(y,x);
+        %                     M.pixelMap(y,x,1) = M.cMap2(y,x);
+        %                     if M.cMap2(y,x) < 0.1
+        %                         M.cMap2(y,x) = 0;
+        %                         M.pixelMap(y,x,1) = 0;
+        %                     end
+        %                     if M.cMap2(y,x) > deathValue
+        %                         M.poxMap(y,x) = 0;
+        %                     end
+        %                 end
+        %                 if x == xmin-1 && linechange == false
+        %                     xminconst = true;
+        %                 end
+        %                 if x == xmax-1 && linechange == false
+        %                     xmaxconst = true;
+        %                 end
+        %             end
+        %             if xminconst == true
+        %                 xmin = xmin +1;
+        %             end
+        %             if xmaxconst == true
+        %                 xmax = xmax - 1;
+        %             end
+        %
+        %             if anyminy == false
+        %                 ymin = ymin +1;
+        %             end
+        %
+        %             if anymaxy == false
+        %                 ymax = ymax -1;
+        %             end
+        %
+        %             xmin = max(xmin -1, cmin);
+        %             xmax = min(xmax+1, 2*M.nerve_r - cmin);
+        %             ymin = max(ymin-1,  cmin);
+        %             ymax = min(ymax+1, 2*M.nerve_r- cmin);
+        %
+        %
+        %             fprintf('frame %d [1] xmin=%d, xmax=%d, ymin=%d, ymax= %d\n', frame, xmin, xmax, ymin, ymax);
+        %
+        %             xminconst = false;
+        %             xmaxconst = false;
+        %             anyminy = false;
+        %             anymaxy = false;
+        %             for x = xmin-1: xmax+1
+        %                 for y = ymin-1: ymax+1
+        %                     if M.spaceMap(y,x) < 0
+        %                         continue;
+        %                     end
+        %                     diffusion = M.diffInside*(M.cMap2(y-1,x)-M.cMap2(y,x)) +  M.diffInside*(M.cMap2(y+1,x)-M.cMap2(y,x)) +  M.diffInside*(M.cMap2(y,x-1)-M.cMap2(y,x)) + M.diffInside*(M.cMap2(y,x+1)-M.cMap2(y,x));
+        %                     if M.cMap2(y,x) == 0 && diffusion == 0
+        %                         continue;
+        %                     end
+        %                     if y == (ymin -1)
+        %                         anyminy = true;
+        %                     end
+        %                     if y == (ymax+1)
+        %                         anymaxy = true;
+        %                     end
+        %                     M.cMap1(y,x) = (M.cMap2(y,x)+ M.poxMap(y,x) + diffusion)*M.scavMap(y,x) ;
+        %                     M.pixelMap(y,x,1) = M.cMap1(y,x);
+        %                     if M.cMap1(y,x) < 0.1
+        %                         M.cMap1(y,x) = 0;
+        %                         M.pixelMap(y,x,1) = 0;
+        %                     end
+        %                     if M.cMap1(y,x) > deathValue
+        %                         M.poxMap(y,x) = 0;
+        %                     end
+        %                 end
+        %                 if x == xmin-1 && linechange == false
+        %                     xminconst = true;
+        %                 end
+        %                 if x == xmax-1 && linechange == false
+        %                     xmaxconst = true;
+        %                 end
+        %             end
+        %
+        %             if xminconst == true
+        %                 xmin = xmin +1;
+        %             end
+        %             if xmaxconst == true
+        %                 xmax = xmax - 1;
+        %             end
+        %             if anyminy == false
+        %                 ymin = ymin +1;
+        %             end
+        %
+        %             if anymaxy == false
+        %                 ymax = ymax -1;
+        %             end
+        %             xmin = max(xmin -1, cmin);
+        %             xmax = min(xmax+1, 2*M.nerve_r - cmin);
+        %             ymin = max(ymin-1, cmin);
+        %             ymax = min(ymax+1, 2*M.nerve_r- cmin);
+        %
+        %             fprintf('frame %d [2] xmin=%d, xmax=%d, ymin=%d, ymax= %d\n', frame, xmin, xmax, ymin, ymax);
+        %
+        %             if mod(frame, 10) == 1
+        %                 plot_model('pixelmap');
+        %             end
+        %
+        %             %             for x = 2: 2*M.nerve_r-1
+        %             %                 for y = 2: 2*M.nerve_r-1
+        %             %                     if M.spaceMap(y,x) < 0
+        %             %                         continue;
+        %             %                     end
+        %             %                     if M.cMap1(y,x) == 0
+        %             %                         continue;
+        %             %                     end
+        %             %                     M.cMap2(y,x) = M.cMap1(y,x)+ M.poxMap(y,x) + M.scavMap(y,x) + M.diffInside*(M.cMap1(y-1,x)-M.cMap1(y,x)) +  M.diffInside*(M.cMap1(y+1,x)-M.cMap1(y,x)) +  M.diffInside*(M.cMap1(y,x-1)-M.cMap1(y,x)) + M.diffInside*(M.cMap1(y,x+1)-M.cMap1(y,x)) ;
+        %             %                 end
+        %             %             end
+        %
+        %             %             for x = 2: 2*M.nerve_r-1
+        %             %                 for y = 2: 2*M.nerve_r-1
+        %             %                     if M.spaceMap(y,x) < 0
+        %             %                         continue;
+        %             %                     end
+        %             %                     if M.cMap1(y,x) == 0
+        %             %                         continue;
+        %             %                     end
+        %             %                     M.cMap1(y,x) = M.cMap2(y,x)+ M.poxMap(y,x) + M.scavMap(y,x) + M.diffInside*(M.cMap2(y-1,x)-M.cMap2(y,x)) +  M.diffInside*(M.cMap2(y+1,x)-M.cMap2(y,x)) +  M.diffInside*(M.cMap2(y,x-1)-M.cMap2(y,x)) + M.diffInside*(M.cMap2(y,x+1)-M.cMap2(y,x)) ;
+        %             %                 end
+        %             %             end
+        %
+        %         end
+        %
         
-        for frame = 1: 1480
-            xminconst = false;
-            xmaxconst = false;
-            anyminy = false;
-            anymaxy = false;
-            for x = xmin-1: xmax+1
-                linechange = false;
-                for y = ymin-1: ymax+1
-                    if M.spaceMap(y,x) < 0
-                        continue;
-                    end
-                    diffusion = M.diffInside*(M.cMap1(y-1,x)-M.cMap1(y,x)) +  M.diffInside*(M.cMap1(y+1,x)-M.cMap1(y,x)) +  M.diffInside*(M.cMap1(y,x-1)-M.cMap1(y,x)) + M.diffInside*(M.cMap1(y,x+1)-M.cMap1(y,x));
-                    if M.cMap1(y,x) == 0 && diffusion == 0
-                        continue;
-                    end
-                    linechange = true;
-                    if y == (ymin -1) 
-                        anyminy = true;
-                    end
-                    if y == (ymax+1)
-                        anymaxy = true;
-                    end
-                    M.cMap2(y,x) = (M.cMap1(y,x)+ M.poxMap(y,x) + diffusion)*M.scavMap(y,x);
-                    if M.cMap2(y,x) < 0.1
-                        M.cMap2(y,x) = 0;
-                    end
-                    if M.cMap2(y,x) > deathValue
-                        M.poxMap(y,x) = 0;
-                    end
-                end
-                if x == xmin-1 && linechange == false
-                    xminconst = true;
-                end
-                if x == xmax-1 && linechange == false
-                    xmaxconst = true;
-                end
-            end
-            if xminconst == true
-                xmin = xmin +1;
-            end
-            if xmaxconst == true
-                xmax = xmax - 1;
-            end
+        gMap1 = gpuArray(M.cMap1);
+        gu    = gpuArray(circshift(M.cMap1,-1,1));
+        gd    = gpuArray(circshift(M.cMap1,1,1));
+        gl    = gpuArray(circshift(M.cMap1,-1,2));
+        gr    = gpuArray(circshift(M.cMap1,1,2));
+        gpox  = gpuArray(M.poxMap);
+        gscav = gpuArray(M.scavMap);
+        gsmap = gpuArray(M.spaceMap);
+        %gpixg  = gpuArray(M.pixelMap(:,:,2));
+        %gpixb  = gpuArray(M.pixelMap(:,:,3));
+        diff = ones(2*M.nerve_r, 2*M.nerve_r)* M.diffInside;
+        di = gpuArray(diff);
+        
+        for i=1:simIterations
+            %tic
+            [gMap1, gpox, rpix, gpix, bpix] = arrayfun(@gpu_diffusion, ...
+                gMap1, gu, gd, gl, gr, gpox, gscav, gsmap, di);
+            gu    = gpuArray(circshift(gMap1,-1,1));
+            gd    = gpuArray(circshift(gMap1,1,1));
+            gl    = gpuArray(circshift(gMap1,-1,2));
+            gr    = gpuArray(circshift(gMap1,1,2));
             
-            if anyminy == false
-                ymin = ymin +1;
-            end
-            
-            if anymaxy == false
-                ymax = ymax -1;
-            end
-            
-            xmin = max(xmin -1, cmin);
-            xmax = min(xmax+1, 2*M.nerve_r - cmin);
-            ymin = max(ymin-1,  cmin);
-            ymax = min(ymax+1, 2*M.nerve_r- cmin);
-            
-            
-            fprintf('frame %d [1] xmin=%d, xmax=%d, ymin=%d, ymax= %d\n', frame, xmin, xmax, ymin, ymax);
-            
-            xminconst = false;
-            xmaxconst = false;
-            anyminy = false;
-            anymaxy = false;
-            for x = xmin-1: xmax+1
-                for y = ymin-1: ymax+1
-                    if M.spaceMap(y,x) < 0
-                        continue;
-                    end
-                    diffusion = M.diffInside*(M.cMap2(y-1,x)-M.cMap2(y,x)) +  M.diffInside*(M.cMap2(y+1,x)-M.cMap2(y,x)) +  M.diffInside*(M.cMap2(y,x-1)-M.cMap2(y,x)) + M.diffInside*(M.cMap2(y,x+1)-M.cMap2(y,x));
-                    if M.cMap2(y,x) == 0 && diffusion == 0
-                        continue;
-                    end
-                    if y == (ymin -1) 
-                        anyminy = true;
-                    end
-                    if y == (ymax+1)
-                        anymaxy = true;
-                    end
-                    M.cMap1(y,x) = (M.cMap2(y,x)+ M.poxMap(y,x) + diffusion)*M.scavMap(y,x) ;
-                    if M.cMap1(y,x) < 0.1
-                        M.cMap1(y,x) = 0;
-                    end
-                    if M.cMap1(y,x) > deathValue
-                        M.poxMap(y,x) = 0;
-                    end
-                end
-                if x == xmin-1 && linechange == false
-                    xminconst = true;
-                end
-                if x == xmax-1 && linechange == false
-                    xmaxconst = true;
-                end
-            end
-            
-            if xminconst == true
-                xmin = xmin +1;
-            end
-            if xmaxconst == true
-                xmax = xmax - 1;
-            end
-            if anyminy == false
-                ymin = ymin +1;
-            end
-            
-            if anymaxy == false
-                ymax = ymax -1;
-            end
-            xmin = max(xmin -1, cmin);
-            xmax = min(xmax+1, 2*M.nerve_r - cmin);
-            ymin = max(ymin-1, cmin);
-            ymax = min(ymax+1, 2*M.nerve_r- cmin);
-            
-            fprintf('frame %d [2] xmin=%d, xmax=%d, ymin=%d, ymax= %d\n', frame, xmin, xmax, ymin, ymax);
-            
-            if mod(frame, 10) == 1
+            %toc
+            if mod(i, 200) == 1
+                fprintf("==>> %d\n",i);
+                 rpixel = gather(gMap1);
+                 gpixel = gather(gpix);
+                 bpixel = gather(bpix);
+                pm = cat(3, rpixel, gpixel, bpixel);
+%                plot_model('pixelmap');
                 figure(M.fig_ui);
-                image(M.cMap1, 'XData', [-1*nerve_r nerve_r], 'YData', [-1*nerve_r, nerve_r]);                 
-                colorbar('East');
-                drawnow;
+                axis equal, hold on
+                imagesc(pm, 'XData', [-1*nerve_r nerve_r], 'YData', [-1*nerve_r, nerve_r]);
+                axis('on', 'image');
+                hold off;
+                drawnow
             end
-            
-%             for x = 2: 2*M.nerve_r-1
-%                 for y = 2: 2*M.nerve_r-1
-%                     if M.spaceMap(y,x) < 0
-%                         continue;
-%                     end
-%                     if M.cMap1(y,x) == 0
-%                         continue;
-%                     end
-%                     M.cMap2(y,x) = M.cMap1(y,x)+ M.poxMap(y,x) + M.scavMap(y,x) + M.diffInside*(M.cMap1(y-1,x)-M.cMap1(y,x)) +  M.diffInside*(M.cMap1(y+1,x)-M.cMap1(y,x)) +  M.diffInside*(M.cMap1(y,x-1)-M.cMap1(y,x)) + M.diffInside*(M.cMap1(y,x+1)-M.cMap1(y,x)) ;
-%                 end
-%             end
-
-%             for x = 2: 2*M.nerve_r-1
-%                 for y = 2: 2*M.nerve_r-1
-%                     if M.spaceMap(y,x) < 0
-%                         continue;
-%                     end
-%                     if M.cMap1(y,x) == 0
-%                         continue;
-%                     end
-%                     M.cMap1(y,x) = M.cMap2(y,x)+ M.poxMap(y,x) + M.scavMap(y,x) + M.diffInside*(M.cMap2(y-1,x)-M.cMap2(y,x)) +  M.diffInside*(M.cMap2(y+1,x)-M.cMap2(y,x)) +  M.diffInside*(M.cMap2(y,x-1)-M.cMap2(y,x)) + M.diffInside*(M.cMap2(y,x+1)-M.cMap2(y,x)) ;
-%                 end
-%             end
-
         end
+        fprintf("SIMULATION DONE\n");
     end
-
 end
 
 
