@@ -1,7 +1,7 @@
 % Output: first row center_x
 %    second row: center_y
 %    third row: raduis
-function geom = fill_circles(median_r_value, main_r, dens, r_range, min_dis, hard, obstacles, circleCenters, zoned, mielin)
+function geom = fill_circles(h_feedback, median_r_value, main_r, dens, r_range, min_dis, hard, obstacles, circleCenters, zoned, mielin)
 
 Rand = @(siz, m) min(m) + rand(siz)*diff(m);
 RandSq = @(siz, m) [ min(m(1,:))+rand(siz(1),1)*diff(m(1,:)) min(m(2,:))+rand(siz(1),1)*diff(m(2,:))];
@@ -222,7 +222,8 @@ for zoneIter = 1:nz
     % display
     new_disp_num = round(100*circleIter/n_max_circles(zoneIter));
     if new_disp_num ~= last_disp_num
-        del(nDispChar); nDispChar = fprintf('%d of %d\t', circleIter, n_max_circles(zoneIter));
+        h_feedback.String = sprintf('Generating Axons: [%d of %d]', circleIter, n_max_circles(zoneIter));
+        drawnow;
         last_disp_num = new_disp_num;
     end
 
