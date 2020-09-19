@@ -5,12 +5,15 @@ __global__  void propagation_algo_cuda(
         float* blue,
         float* cMap2,
         const float* cMap1,
-        const float* detox,
+        float* detox,
         const float* centers,
         double dInside,
         double dOutside,
         int lowerLimit,
-        int upperLimit)
+        int upperLimit,
+        double deathThreashold,
+        double amountReleasedOnDeath,
+        float  outsideDetox)
 {
 	//int idx = (blockIdx.x * gridDim.y + blockIdx.y) * blockDim.x + threadIdx.x;
     int xidx = blockIdx.x * blockDim.x + threadIdx.x;
@@ -31,16 +34,32 @@ __global__  void propagation_algo_cuda(
         return;
     }
    
-    if(centers[index] < 0) {
-         return;
+    int centerIndex = centers[index];
+
+    if(axons[index] == 1){
+      if(cMap2[index] > deathThreashold) {
+        cMap2[index] = amountReleasedOnDeath;
+        tox_prod[index] = 0; 
+        axons[index] = 2;
+        blue[index] = 64;
+        detox[index] = outsideDetox;
+        return;
+      }
+    }
+
+    if(centerIndex > 0 && axons[centerIndex-1] ==2 && tox_prod[index] > 0) {
+        cMap2[index] = amountReleasedOnDeath;
+        tox_prod[index] = 0;
+        detox[index] = outsideDetox;
+        blue[index] = 64;
+        return;
     }
 
     float di = dOutside;
 
-    if(centers[index] > 0 ) {
+    if(centerIndex > 0 && axons[centerIndex-1] == 1) {
        di = dInside; 
     }
-
     float t = cMap1[index];
     cMap2[index] = t +
                 (cMap1[indexUp] - t) * di +
@@ -51,32 +70,11 @@ __global__  void propagation_algo_cuda(
 
     cMap2[index] *= detox[index];
 /*
-    if(cMap2[index] > 22 && tox_prod[index] > 0) {
-        cMap2[index] = 10000;
+    if(cMap2[index] > deathThreashold && tox_prod[index] > 0) {
+        cMap2[index] = amountReleasedOnDeath;
         tox_prod[index] = 0; 
         return;
     }
-*/
-       
-    if(axons[index] == 1){
-      if(cMap2[index] > 22) {
-        cMap2[index] = 10000;
-        tox_prod[index] = 0; 
-        axons[index] = 2;
-        blue[index] = 1;
-      }
-      return;
-    }
+*/      
     
-    int centerIndex = centers[index];
-
-    if(centerIndex <= 0){
-        return;
-    }
-       
-    if(tox_prod[index] > 0 && axons[centerIndex-1] == 2 && cMap2[index] > 22) {
-        cMap2[index] = 10000;
-        tox_prod[index] = 0;
-        blue[index] = 1;
-    }
 }

@@ -134,7 +134,7 @@ if any(f('GUI'))
 else
     n_tries = 20;
     while isempty(bund_g) && n_tries > 0
-        bund_g = fill_circles(h_feedback,0, nerve_r, bundle_dens, bundle_r_range, min_bundles_dis, 7, ~obstaclesOnBundles, [], false, 0);
+        [bund_g, b] = fill_circles(h_feedback,0, nerve_r, bundle_dens, bundle_r_range, min_bundles_dis, 7, ~obstaclesOnBundles, [], false, 0);
         n_tries = n_tries - 1;
         fprintf("Fill Circles: try# %d\n", n_tries);
     end
@@ -179,7 +179,7 @@ end
         n_tries = 20;
         bund_g = [];
         while isempty(bund_g) && n_tries > 0
-            bund_g = fill_circles(h_feedback,0, nerve_r, bundle_dens, bundle_r_range, min_bundles_dis, 7, ~obstaclesOnBundles, [],false, 0);
+            [bund_g, drop] = fill_circles(h_feedback,0, nerve_r, bundle_dens, bundle_r_range, min_bundles_dis, 7, ~obstaclesOnBundles, [],false, 0);
             n_tries = n_tries - 1;
             fprintf("Fill Circles: try# %d\n", n_tries);
         end
@@ -399,16 +399,21 @@ end
         fprintf('\tNumber of bundles: %d\n', n_bunds);
         
         neuron_g = cell(n_bunds,1);
+        blood_g  = cell(n_bunds,1);
         expected_r_avg = zeros(n_bunds,1);
         
         fprintf('\tNumber of neurons: ');
         total = 0;
         for k = 1:n_bunds
             expected_r_avg(k) = radius_avg(bund_g(1:2,k)./nerve_r);
-            neuron_g{k} = fill_circles(h_feedback, 5, bund_g(3,k), neuron_dens, neuron_r_range, min_bundles_dis/3, 3, ~obstaclesOnBundles, M.onibigbw, zoned_r, mielinWidth);
+            [neuron_g{k} blood_g{k}] = fill_circles(h_feedback, 5, bund_g(3,k), neuron_dens, neuron_r_range, min_bundles_dis/3, 3, obstaclesOnBundles, M.onibigbw, zoned_r, mielinWidth);
             total = total + size(neuron_g{k}, 2);
             neuron_g{k}(1,:) = neuron_g{k}(1,:) + bund_g(1,k);
             neuron_g{k}(2,:) = neuron_g{k}(2,:) + bund_g(2,k);
+            if ~isempty(blood_g{k})
+                blood_g{k}(1,:) = blood_g{k}(1,:) + bund_g(1,k);
+                blood_g{k}(2,:) = blood_g{k}(2,:) + bund_g(2,k);
+            end
         end
         h_feedback.String = sprintf('Model has %d axons', total);
         drawnow;
@@ -430,6 +435,24 @@ end
                     spaceMap(i,j) = 0;
                     centerMap(i, j) = 0;
                 end
+                if ~isempty(blood_g{k})
+                    x = blood_g{k}(1,1);
+                    y = blood_g{k}(2,1);
+                    r = blood_g{k}(3,1);
+                    if sqrt((i-x)^2+(j-y)^2) <= r
+                      %pixelMap(i,j,:) = 0.4;
+                      spaceMap(i,j) = -1;
+                      centerMap(i, j) = -1;
+                    end
+                    x = blood_g{k}(1,2);
+                    y = blood_g{k}(2,2);
+                    r = blood_g{k}(3,2);
+                    if sqrt((i-x)^2+(j-y)^2) <= r
+                      %pixelMap(i,j,:) = 0.4;
+                      spaceMap(i,j) = -1;
+                      centerMap(i, j) = -1;
+                    end
+                end
             end
         end
         
@@ -446,8 +469,8 @@ end
                 xmax = ceil(xc+nerve_r + (r+m));
                 ymin = ceil(nerve_r -yc - (r+m));
                 ymax = ceil(nerve_r -yc + (r+m));
-                xcn = ceil(xc+nerve_r);
-                ycn = ceil(nerve_r - yc);
+                xcn = floor(xc)+nerve_r;
+                ycn = nerve_r - floor(yc);
                 axonMap(ycn, xcn) = 1;
                 for i = ymin:ymax
                     for j = xmin:xmax
@@ -462,10 +485,11 @@ end
                                 pixelMap(i,j,3) = 0;
                             end
                             spaceMap(i, j ) = (k-1)*bconst + q; % neuron index
-                            centerMap(i,j) = (xcn-1)*2*nerve_r+ ycn;
-                            if axonMap((xcn-1)*2*nerve_r+ ycn) ~= 1
-                                fprintf('Error in center %d\n', (ycn)*2*nerve_r+ xcn);
-                            end
+                            linIndex = (xcn-1)*2*nerve_r+ ycn;
+                            centerMap(i,j) = linIndex;
+%                             if axonMap(linIndex) ~= 1
+%                                 fprintf('Error in center %d\n', linIndex);
+%                             end
                         end
                     end
                 end
@@ -515,6 +539,10 @@ end
         M.diffInside = diffusionInside;
         M.diffBorder = diffusionBoundary;
         M.diffOutside = diffusionOutside;
+        M.deathThr = deathThr;
+        M.deathRelease = deathRelease;
+        M.scavIn = scavIn;
+        M.scavOut = scavOut;
         M.create_csg = @create_csg;
         M.plot.model = @plot_model;
         M.plot.histogram = @plot_histogram;

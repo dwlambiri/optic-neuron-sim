@@ -1,5 +1,5 @@
 
-function propagation_alg_cuda_m01(simIterations, M)
+function propagation_alg_cuda_m01(simIterations, M, itershow)
 
 gd = gpuDevice();
 reset(gd);
@@ -37,7 +37,10 @@ for i=1:2*M.insultRadius
         if sqrt((i-M.insultRadius)^2+(j-M.insultRadius)^2) > M.insultRadius
             continue;
         end
-        M.cMap1(yinsult-M.insultRadius+i, xinsult-M.insultRadius+j) = 400*M.insultAmount;
+        if M.centerMap(yinsult-M.insultRadius+i, xinsult-M.insultRadius+j) <= 0
+            continue;
+        end
+        M.cMap1(yinsult-M.insultRadius+i, xinsult-M.insultRadius+j) = M.insultAmount;
         M.pixelMap(yinsult-M.insultRadius+i, xinsult-M.insultRadius+j, 1) = 1;
     end
 end
@@ -60,31 +63,33 @@ gpixb  = gpuArray(cast(zeros(N),'single'));
 
 fprintf('Running simulation .... \n');
 
-figure();
+fig = figure();
 lowerLimit = 2;
 
+%Q = parallel.pool.DataQueue;
+%afterEach(Q,@(data) displayImage(fig, data, M.nerve_r));
+
 upperLimit = (N)^2-1;
-for i=1:simIterations
+tic
+for i=1:simIterations/2
     %tic
-    [gpox, gamap, gpixb, gMap2] = feval( kernel, N, gpox, gamap, gpixb, gMap2, gMap1, gscav,gcmap, 5*M.diffInside, 10*M.diffOutside, lowerLimit, upperLimit ); wait(gd);
+    [gpox, gamap, gpixb, gMap2, gscav] = feval( kernel, N, gpox, gamap, gpixb, gMap2, gMap1, gscav,gcmap, M.diffInside, M.diffOutside, lowerLimit, upperLimit, M.deathThr, M.deathRelease, 1-M.scavOut ); 
     
     %toc
-    if mod(i, 200) == 1
-        fprintf('Running simulation: [Iter %d of %d]\n', i, simIterations);
+   
+   [gpox, gamap, gpixb, gMap1, gscav] = feval( kernel, N, gpox, gamap, gpixb, gMap1, gMap2, gscav, gcmap, M.diffInside, M.diffOutside, lowerLimit, upperLimit, M.deathThr, M.deathRelease, 1 - M.scavOut  ); 
+
+   if mod(i, itershow) == 1
+        fprintf('Running simulation: [Iter %d of %d]\n', 2*i, simIterations);
         %fprintf("==>> %d\n",i);
           rpixel = gather(gMap2);
-%         gpixel = gather(gpix);
-         bpixel = gather(gpixb);
-         pm = cat(3, rpixel, M.spaceMap, bpixel);
+          bpixel = gather(gpixb);
+         %bpixel = gather(gpixb);
+         pm = cat(3, rpixel, M.centerMap, bpixel);
+         displayImage(fig, pm, M.nerve_r);
         %                plot_model('pixelmap');
-          axis equal, hold on
-          imagesc(pm, 'XData', [-1*M.nerve_r M.nerve_r], 'YData', [-1*M.nerve_r, M.nerve_r]);
-          axis('on', 'image');
-          hold off;
-        drawnow
    end
-   
-   [gpox, gamap, gpixb, gMap1] = feval( kernel, N, gpox, gamap, gpixb, gMap1, gMap2, gscav, gcmap, 5*M.diffInside, 10*M.diffOutside, lowerLimit, upperLimit ); wait(gd);
 end
+toc
 fprintf('Simulation Complete\n');
 end

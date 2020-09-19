@@ -1,11 +1,12 @@
 % Output: first row center_x
 %    second row: center_y
 %    third row: raduis
-function geom = fill_circles(h_feedback, median_r_value, main_r, dens, r_range, min_dis, hard, obstacles, circleCenters, zoned, mielin)
+function [geom, blood] = fill_circles(h_feedback, median_r_value, main_r, dens, r_range, min_dis, hard, obstacles, circleCenters, zoned, mielin)
 
 Rand = @(siz, m) min(m) + rand(siz)*diff(m);
 RandSq = @(siz, m) [ min(m(1,:))+rand(siz(1),1)*diff(m(1,:)) min(m(2,:))+rand(siz(1),1)*diff(m(2,:))];
 
+blood = [];
 max_n_tries = 100;
 
 del = @(x) fprintf(repmat('\b',1,x));
@@ -18,7 +19,7 @@ end
 if zoned
     zoneSplit = [2/3 1; 1/3 2/3; 0 1/3; -1/3 0; -2/3 -1/3; -1 -2/3];
     yvalue = [sqrt(5/9); sqrt(8/9); 1 ; 1; sqrt(8/9); sqrt(5/9)];
-    zspace = [1 0.8 0.7 0.7 1 1];
+    zspace = [1 1 1 1 1 1];
     nz = size(zoneSplit,1);
 else
     zoneSplit = [-1 1];
@@ -32,21 +33,21 @@ if median_r_value
     %n_max_circles = ceil((main_r / mode_r_value)^2/6);
     % max circles = (114*1000*Area + 218000)*reduction
     %variability = 1 + (mod((rand()*100),20))/100;
-    variability = 2;
+    variability = 1;
 
     calc_r = main_r;
     % if we calculate num neurons consider the higher density in 
     % non mielinated areas
     if isempty(mielin) || mielin == 0
-        calc_r = 1200/900*main_r;
+        calc_r = 1500/900*main_r;
     end
     n_max = ceil(variability*(114000*3.1415*(calc_r/1000)^2 + 218000)*(1/10)^2);
     if zoned
-        per_zone_neurons = [.15 .24 .28 .28 .18 .11];
-        divider = 5;
+        per_zone_neurons = [.11 .18 .24 .24 .18 .11];
+        %divider = 5;
     else
         per_zone_neurons = 1;
-        divider = 1;
+        %divider = 1;
     end
     gen_n = ceil(n_max*max(per_zone_neurons));
     fprintf('gen_n %d\n', gen_n);
@@ -54,17 +55,19 @@ if median_r_value
     for i=1:nz
         %skewed_distr(siz, median_r, mode_r, min_r, max_r)
         if nz == 1
-            radius_set_tmp = skewed_distr(gen_n, 2*median_r_value, 2*(median_r_value-1), 2*min(r_range), 2*(max(r_range)-3*(i-1)));
+            diameter_set_tmp = skewed_distr(gen_n, 2*median_r_value, 2*(median_r_value-1), 2*min(r_range), 2*(max(r_range)-3*(i-1)));
         else
             % use the formula from Pan figure 5 but for median not average!
             % median *diameter* - 0.0639*i + 0.8839 (um) -> for pixels multiply by 10
             % mode is minus 0.2 um is minux 2 pixels
-            radius_set_tmp = skewed_distr(ceil(n_max*per_zone_neurons(i)), 0.639*(nz+1-i) +8.838, 0.639*(nz+1-i) +6.838 , 2*min(r_range), max(2*(max(r_range)-(i-1)^1.8), 2*(0.639*(nz+1-i) +8.838)));
+            diameter_set_tmp = skewed_distr(ceil(n_max*per_zone_neurons(i)), 0.639*(nz+1-i) +8.838, 0.639*(nz+1-i) +6.838 , 2*min(r_range), 2*(max(r_range)-2*i));
         end
-        radius_set_tmp = radius_set_tmp/2;
-        radius_set_tmp = radius_set_tmp(1:length(radius_set_tmp));
-        %radius_set_tmp = radius_set_tmp + mielin;
+        radius_set_tmp = diameter_set_tmp/2;
+        
+        %radius_set_tmp = radius_set_tmp;
+        %radius_set_tmp = radius_set_tmp(1:length(radius_set_tmp));
         radius_set_tmp = sort(radius_set_tmp, 'descend');
+        
         radius_set(1:length(radius_set_tmp),i) = radius_set_tmp;
         n_max_circles(i) = min(floor(n_max*per_zone_neurons(i)), length(radius_set_tmp));
     end
@@ -109,14 +112,16 @@ if obstacles
     ratio_2 = 7.25;
     
 
-    center = [(0+200) 0]; % create artery
-    radius = 200;
+    center = [(0+ceil(main_r/8)) 0]; % create artery
+    radius = ceil(main_r/6);
 
     %sumrad2 = (main_r/ratio_1)^2;
     
-    center = [center; (0-200) 0]; % create vein
-    radius = [radius; 150];
+    center = [center; (0-ceil(main_r/15)) 0]; % create vein
+    radius = [radius; ceil(main_r/10)];
     miel   = [0; 0];
+    
+    blood = [center radius miel zeros(length(radius),1)]';
     %sumrad2 = sumrad2 + (main_r/ratio_2)^2;
     rem = 2;
     
@@ -209,8 +214,6 @@ hard = mod(ceil(hard),4)+1;
 tic
 countNeurons = 0;
 %maxNeurons = ceil(160000* (main_r/10000)^2);
-maxNeurons = 10^6;
-stopPlacing = false;
 
 sumradTemp = sumrad2;
 
@@ -220,13 +223,10 @@ for zoneIter = 1:nz
   
   for circleIter = 1:n_max_circles(zoneIter)
     % display
-    new_disp_num = round(100*circleIter/n_max_circles(zoneIter));
-    if new_disp_num ~= last_disp_num
-        h_feedback.String = sprintf('Generating Axons: [%d of %d]', circleIter, n_max_circles(zoneIter));
+    if mod(circleIter, 100) == 1
+        h_feedback.String = sprintf('Generating Axons [Zone: %d]: [%d of %d]', zoneIter, circleIter, n_max_circles(zoneIter));
         drawnow;
-        last_disp_num = new_disp_num;
-    end
-
+    end  
     %% Create a random circle
     if nz == 1
         r = radius_set(circleIter);
@@ -268,15 +268,18 @@ for zoneIter = 1:nz
 
     if zoned == false
         n_tries = ceil((main_r^2*zspace(zoneIter)/nz/emptySpace)^(max(0,hard)));
+        if r < 6
+            n_tries = max_n_tries;
+        end
     else
-        n_tries = max_n_tries;
+        if(zoneIter == 3) || (zoneIter == 4) 
+            n_tries = floor(max_n_tries/20);
+        else
+            n_tries = max_n_tries/10;
+        end
     end
     if n_tries >= max_n_tries
-        if zoneIter == nz
-            n_tries = 2*max_n_tries;
-        else
-           n_tries = max_n_tries; 
-        end
+                n_tries = max_n_tries; 
     end
     
     %fprintf(" Hard = %d Tries = %d\n", hard, n_tries);
@@ -289,7 +292,7 @@ for zoneIter = 1:nz
     for tryIter = 1:n_tries % tring to fit the circle with radius r
         c = center_set(tryIter,:);
         % Check if non overlapping
-        if (zoneIter == 3 || zoneIter == 4 || zoneIter == 5) && r > 25
+        if (zoneIter == 5 || zoneIter ==3 || zoneIter == 4) && r > 25
             limit = 750;
             if c(2) >=-1*limit && c(2) <= limit
                c(2) = -1*(limit+(1500-limit)*rand(1,1)); 
@@ -342,17 +345,11 @@ for zoneIter = 1:nz
                     miel = [ miel; mw];
                     sumrad2 = sumrad2 + (r+mw)^2;
                     countNeurons = countNeurons + 1;
-                    if countNeurons > maxNeurons
-                        stopPlacing = true;
-                    end
                     %toc
                     break;
                 end 
             end
         end
-    end
-    if stopPlacing == true
-         break;
     end
   end
 end
