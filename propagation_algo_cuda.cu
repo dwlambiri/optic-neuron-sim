@@ -7,12 +7,12 @@ __global__  void propagation_algo_cuda(
         const float* cMap1,
         float* detox,
         const float* centers,
-        double dInside,
-        double dOutside,
+        float dInside,
+        float dOutside,
         int lowerLimit,
         int upperLimit,
-        double deathThreashold,
-        double amountReleasedOnDeath,
+        float deathThreashold,
+        float amountReleasedOnDeath,
         float  outsideDetox)
 {
 	//int idx = (blockIdx.x * gridDim.y + blockIdx.y) * blockDim.x + threadIdx.x;

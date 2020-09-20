@@ -4,7 +4,6 @@ function M = generate_model(varargin)
 %   Type, Value
 %       neuron_scale
 %       nerve_r
-%       bundle_r_range
 %       min_bundle_dis
 %       neuron_r_range
 %       neuron_dens
@@ -31,16 +30,17 @@ f = @(g) (cellfun(@(x) ischar(x) && strcmp(x,g), varargin));
 
 neuron_scale = read_pair('neuron_scale', 30);
 nerve_r = read_pair('nerve_r', 1500);
-bundle_r_range = read_pair('bundle_r_range', [1499 1500]);
+bundle_r_range = read_pair('bundle_r_range', [nerve_r-1 nerve_r]);
 min_bundles_dis = read_pair('min_bundles_dis', 0);
 neuron_r_range = [1.5 30]; % because of 10 pixels/um and radius
 neuron_dens = read_pair('neuron_dens', 1);
 refine = read_pair('refine', 0);
-file = read_pair('file', []);
+modelFileName = read_pair('file', []);
 imageFile = read_pair('image', []);
 mielinWidth = read_pair('mielin', 5);
+init_insult = read_pair('init_insult', [nerve_r nerve_r]);
 insultAmount = read_pair('insult_amount', 25);
-insultRadius = read_pair('insult_radius', 100);
+insultRadius = read_pair('insult_radius', nerve_r/5);
 scavIn = read_pair('scavenging_intra', 0.01);
 scavOut = read_pair('scavenging_out', 0.001);
 prodAmount = read_pair('production_amount', 0.01);
@@ -57,8 +57,6 @@ else
     zoned_r = false;
 end
 
-% PROPAGATION ALGO PARAMETERS
-init_insult = read_pair('init_insult', [ceil(nerve_r/4) nerve_r]);
 
 obstaclesOnBundles = true;
 
@@ -84,17 +82,23 @@ end
 
 %% Init
 
-if ~isempty(file)
-    file_full_addr = ['models\' file '.mat'];
+M = struct;
+
+if ~isempty(modelFileName)
+    file_full_addr = ['models\' modelFileName];
     if exist(file_full_addr,'file') && ~any(f('rewrite'))
-        fprintf('Reading existing model: %s\n', file);
+        fprintf('Reading existing model: %s\n', modelFileName);
         load(file_full_addr, 'M');
         if any(f('plot_model')), M.plot.model(); end
         return;
     end
-else 
-    file_full_addr = '';
+else
+    modelFileName = 'temp.mat';
+   file_full_addr = ['models\temp.mat'];
 end
+
+M.file_full_addr = file_full_addr;
+M.save = @(M) save(M.file_full_addr, 'M');
 
 % Create bundles
 bund_g = [];
@@ -121,9 +125,13 @@ if any(f('GUI'))
     h_neuron_r_range = pair_text('Neuron Radius:', [.82 .65], neuron_r_range);
     h_image_file = pair_text('Image File:', [.82 .6], imageFile);
     h_mielin = pair_text('Max Mielin Width:', [.82 .55], mielinWidth);
+    h_modelFile = pair_text('Model File:', [.82 .5], modelFileName);
+    
     %h_neuron_scale = pair_text('Neuron Scale', [.82 .5], neuron_scale);
-    uicontrol('style','pushbutton', 'Units','Normalized', 'position', [.84 .4 .12 .05], 'String', 'Gen Bundles', 'Callback', @genBundle);
-    uicontrol('style','pushbutton', 'Units','Normalized', 'position', [.84 .35 .12 .05], 'String', 'Gen Neurons', 'Callback', @genNeurons);
+    uicontrol('style','pushbutton', 'Units','Normalized', 'position', [.84 .4 .12 .05], 'String', 'Load Model', 'Callback', @loadModel);
+    uicontrol('style','pushbutton', 'Units','Normalized', 'position', [.84 .35 .12 .05], 'String', 'Save Model', 'Callback', @saveModel);
+    uicontrol('style','pushbutton', 'Units','Normalized', 'position', [.84 .3 .12 .05], 'String', 'Gen Bundles', 'Callback', @genBundle);
+    uicontrol('style','pushbutton', 'Units','Normalized', 'position', [.84 .25 .12 .05], 'String', 'Gen Neurons', 'Callback', @genNeurons);
     %uicontrol('style','pushbutton', 'Units','Normalized', 'position', [.84 .30 .12 .05], 'String', 'Plot Hist', 'Callback', @runHistogram);
     genBundle(0,0);
     
@@ -145,7 +153,40 @@ else
 end
 
 %% Bundle GUI
+    function saveModel(~,~)
+        h_feedback = 'Saving Model';
+        drawnow;
+        t = h_modelFile.String;
+        if isempty(t) 
+           t = 'tmp.mat'; 
+        end
+        M.file_full_addr = ['models\' t];
+        M.save(M);
+        h_feedback = 'Model saved';
+        drawnow;
+    end
 
+    function loadModel(~,~)
+        h_feedback = 'Reading Model';
+        drawnow;
+        t = h_modelFile.String;
+        if isempty(t) 
+           t = 'tmp.mat'; 
+        end
+         M.file_full_addr = ['models\' t];
+         if exist(M.file_full_addr,'file')
+            h_feedback = sprintf('Reading existing model: %s\n', M.file_full_addr);
+            drawnow;
+            load(file_full_addr, 'N');
+            M.plot.model();
+            h_feedback = 'New model loaded'; 
+            drawnow;
+            return;
+         else
+            h_feedback = 'Error: Model file not found'; 
+            drawnow;
+         end
+    end
 
     function genBundle(~,~)
         t1 = str2num(h_nerv_r.String); %#ok<*ST2NM>
@@ -506,7 +547,10 @@ end
                     qqq = floor(spaceMap(i,j)/bconst)+1;
                     idx = mod(spaceMap(i,j), bconst);
                     neuron = neuron_g{qqq}(:,idx);
-                    poxMap(i,j) = prodAmount/neuron(3);
+                    % the production is proportional to the *perimeter*
+                    % which is 2*pi*r. pox*pi*r^2 = 2*prod/r*pi*r^2 =
+                    % 2*pi*prod*r ==>> total poxProd per neuron ~2*pi*r
+                    poxMap(i,j) = 2*prodAmount/neuron(3);
                     scavMap(i,j) = (1-scavIn);
                 else
                     %pixel is part of connecting tissue

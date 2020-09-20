@@ -10,49 +10,48 @@
 .target sm_50
 .address_size 64
 
-	// .globl	_Z21propagation_algo_cudaiPfPsS_S_PKfS_S2_ddiiddf
+	// .globl	_Z21propagation_algo_cudaiPfPsS_S_PKfS_S2_ffiifff
 
-.visible .entry _Z21propagation_algo_cudaiPfPsS_S_PKfS_S2_ddiiddf(
-	.param .u32 _Z21propagation_algo_cudaiPfPsS_S_PKfS_S2_ddiiddf_param_0,
-	.param .u64 _Z21propagation_algo_cudaiPfPsS_S_PKfS_S2_ddiiddf_param_1,
-	.param .u64 _Z21propagation_algo_cudaiPfPsS_S_PKfS_S2_ddiiddf_param_2,
-	.param .u64 _Z21propagation_algo_cudaiPfPsS_S_PKfS_S2_ddiiddf_param_3,
-	.param .u64 _Z21propagation_algo_cudaiPfPsS_S_PKfS_S2_ddiiddf_param_4,
-	.param .u64 _Z21propagation_algo_cudaiPfPsS_S_PKfS_S2_ddiiddf_param_5,
-	.param .u64 _Z21propagation_algo_cudaiPfPsS_S_PKfS_S2_ddiiddf_param_6,
-	.param .u64 _Z21propagation_algo_cudaiPfPsS_S_PKfS_S2_ddiiddf_param_7,
-	.param .f64 _Z21propagation_algo_cudaiPfPsS_S_PKfS_S2_ddiiddf_param_8,
-	.param .f64 _Z21propagation_algo_cudaiPfPsS_S_PKfS_S2_ddiiddf_param_9,
-	.param .u32 _Z21propagation_algo_cudaiPfPsS_S_PKfS_S2_ddiiddf_param_10,
-	.param .u32 _Z21propagation_algo_cudaiPfPsS_S_PKfS_S2_ddiiddf_param_11,
-	.param .f64 _Z21propagation_algo_cudaiPfPsS_S_PKfS_S2_ddiiddf_param_12,
-	.param .f64 _Z21propagation_algo_cudaiPfPsS_S_PKfS_S2_ddiiddf_param_13,
-	.param .f32 _Z21propagation_algo_cudaiPfPsS_S_PKfS_S2_ddiiddf_param_14
+.visible .entry _Z21propagation_algo_cudaiPfPsS_S_PKfS_S2_ffiifff(
+	.param .u32 _Z21propagation_algo_cudaiPfPsS_S_PKfS_S2_ffiifff_param_0,
+	.param .u64 _Z21propagation_algo_cudaiPfPsS_S_PKfS_S2_ffiifff_param_1,
+	.param .u64 _Z21propagation_algo_cudaiPfPsS_S_PKfS_S2_ffiifff_param_2,
+	.param .u64 _Z21propagation_algo_cudaiPfPsS_S_PKfS_S2_ffiifff_param_3,
+	.param .u64 _Z21propagation_algo_cudaiPfPsS_S_PKfS_S2_ffiifff_param_4,
+	.param .u64 _Z21propagation_algo_cudaiPfPsS_S_PKfS_S2_ffiifff_param_5,
+	.param .u64 _Z21propagation_algo_cudaiPfPsS_S_PKfS_S2_ffiifff_param_6,
+	.param .u64 _Z21propagation_algo_cudaiPfPsS_S_PKfS_S2_ffiifff_param_7,
+	.param .f32 _Z21propagation_algo_cudaiPfPsS_S_PKfS_S2_ffiifff_param_8,
+	.param .f32 _Z21propagation_algo_cudaiPfPsS_S_PKfS_S2_ffiifff_param_9,
+	.param .u32 _Z21propagation_algo_cudaiPfPsS_S_PKfS_S2_ffiifff_param_10,
+	.param .u32 _Z21propagation_algo_cudaiPfPsS_S_PKfS_S2_ffiifff_param_11,
+	.param .f32 _Z21propagation_algo_cudaiPfPsS_S_PKfS_S2_ffiifff_param_12,
+	.param .f32 _Z21propagation_algo_cudaiPfPsS_S_PKfS_S2_ffiifff_param_13,
+	.param .f32 _Z21propagation_algo_cudaiPfPsS_S_PKfS_S2_ffiifff_param_14
 )
 {
 	.reg .pred 	%p<22>;
 	.reg .b16 	%rs<5>;
-	.reg .f32 	%f<25>;
+	.reg .f32 	%f<29>;
 	.reg .b32 	%r<25>;
-	.reg .f64 	%fd<9>;
 	.reg .b64 	%rd<31>;
 
 
-	ld.param.u32 	%r7, [_Z21propagation_algo_cudaiPfPsS_S_PKfS_S2_ddiiddf_param_0];
-	ld.param.u64 	%rd8, [_Z21propagation_algo_cudaiPfPsS_S_PKfS_S2_ddiiddf_param_1];
-	ld.param.u64 	%rd14, [_Z21propagation_algo_cudaiPfPsS_S_PKfS_S2_ddiiddf_param_2];
-	ld.param.u64 	%rd9, [_Z21propagation_algo_cudaiPfPsS_S_PKfS_S2_ddiiddf_param_3];
-	ld.param.u64 	%rd10, [_Z21propagation_algo_cudaiPfPsS_S_PKfS_S2_ddiiddf_param_4];
-	ld.param.u64 	%rd11, [_Z21propagation_algo_cudaiPfPsS_S_PKfS_S2_ddiiddf_param_5];
-	ld.param.u64 	%rd12, [_Z21propagation_algo_cudaiPfPsS_S_PKfS_S2_ddiiddf_param_6];
-	ld.param.u64 	%rd13, [_Z21propagation_algo_cudaiPfPsS_S_PKfS_S2_ddiiddf_param_7];
-	ld.param.f64 	%fd3, [_Z21propagation_algo_cudaiPfPsS_S_PKfS_S2_ddiiddf_param_8];
-	ld.param.f64 	%fd8, [_Z21propagation_algo_cudaiPfPsS_S_PKfS_S2_ddiiddf_param_9];
-	ld.param.u32 	%r8, [_Z21propagation_algo_cudaiPfPsS_S_PKfS_S2_ddiiddf_param_10];
-	ld.param.u32 	%r6, [_Z21propagation_algo_cudaiPfPsS_S_PKfS_S2_ddiiddf_param_11];
-	ld.param.f64 	%fd5, [_Z21propagation_algo_cudaiPfPsS_S_PKfS_S2_ddiiddf_param_12];
-	ld.param.f64 	%fd6, [_Z21propagation_algo_cudaiPfPsS_S_PKfS_S2_ddiiddf_param_13];
-	ld.param.f32 	%f1, [_Z21propagation_algo_cudaiPfPsS_S_PKfS_S2_ddiiddf_param_14];
+	ld.param.u32 	%r7, [_Z21propagation_algo_cudaiPfPsS_S_PKfS_S2_ffiifff_param_0];
+	ld.param.u64 	%rd8, [_Z21propagation_algo_cudaiPfPsS_S_PKfS_S2_ffiifff_param_1];
+	ld.param.u64 	%rd14, [_Z21propagation_algo_cudaiPfPsS_S_PKfS_S2_ffiifff_param_2];
+	ld.param.u64 	%rd9, [_Z21propagation_algo_cudaiPfPsS_S_PKfS_S2_ffiifff_param_3];
+	ld.param.u64 	%rd10, [_Z21propagation_algo_cudaiPfPsS_S_PKfS_S2_ffiifff_param_4];
+	ld.param.u64 	%rd11, [_Z21propagation_algo_cudaiPfPsS_S_PKfS_S2_ffiifff_param_5];
+	ld.param.u64 	%rd12, [_Z21propagation_algo_cudaiPfPsS_S_PKfS_S2_ffiifff_param_6];
+	ld.param.u64 	%rd13, [_Z21propagation_algo_cudaiPfPsS_S_PKfS_S2_ffiifff_param_7];
+	ld.param.f32 	%f3, [_Z21propagation_algo_cudaiPfPsS_S_PKfS_S2_ffiifff_param_8];
+	ld.param.f32 	%f28, [_Z21propagation_algo_cudaiPfPsS_S_PKfS_S2_ffiifff_param_9];
+	ld.param.u32 	%r8, [_Z21propagation_algo_cudaiPfPsS_S_PKfS_S2_ffiifff_param_10];
+	ld.param.u32 	%r6, [_Z21propagation_algo_cudaiPfPsS_S_PKfS_S2_ffiifff_param_11];
+	ld.param.f32 	%f5, [_Z21propagation_algo_cudaiPfPsS_S_PKfS_S2_ffiifff_param_12];
+	ld.param.f32 	%f6, [_Z21propagation_algo_cudaiPfPsS_S_PKfS_S2_ffiifff_param_13];
+	ld.param.f32 	%f7, [_Z21propagation_algo_cudaiPfPsS_S_PKfS_S2_ffiifff_param_14];
 	cvta.to.global.u64 	%rd1, %rd14;
 	mov.u32 	%r9, %ntid.x;
 	mov.u32 	%r10, %ctaid.x;
@@ -94,8 +93,8 @@
 	cvta.to.global.u64 	%rd19, %rd13;
 	mul.wide.s32 	%rd20, %r1, 4;
 	add.s64 	%rd21, %rd19, %rd20;
-	ld.global.f32 	%f2, [%rd21];
-	cvt.rzi.s32.f32	%r5, %f2;
+	ld.global.f32 	%f8, [%rd21];
+	cvt.rzi.s32.f32	%r5, %f8;
 	mul.wide.s32 	%rd22, %r1, 2;
 	add.s64 	%rd2, %rd1, %rd22;
 	ld.global.u16 	%rs1, [%rd2];
@@ -106,22 +105,20 @@
 	setp.ne.s16	%p15, %rs1, 1;
 	@%p15 bra 	BB0_4;
 
-	ld.global.f32 	%f3, [%rd3];
-	cvt.f64.f32	%fd7, %f3;
-	setp.gt.f64	%p16, %fd7, %fd5;
+	ld.global.f32 	%f9, [%rd3];
+	setp.gt.f32	%p16, %f9, %f5;
 	@%p16 bra 	BB0_11;
 	bra.uni 	BB0_4;
 
 BB0_11:
-	cvt.rn.f32.f64	%f24, %fd6;
-	st.global.f32 	[%rd3], %f24;
+	st.global.f32 	[%rd3], %f6;
 	mov.u32 	%r23, 0;
 	st.global.u32 	[%rd4], %r23;
 	mov.u16 	%rs4, 2;
 	st.global.u16 	[%rd2], %rs4;
 	mov.u32 	%r24, 1115684864;
 	st.global.u32 	[%rd6], %r24;
-	st.global.f32 	[%rd5], %f1;
+	st.global.f32 	[%rd5], %f7;
 	bra.uni 	BB0_12;
 
 BB0_4:
@@ -135,17 +132,16 @@ BB0_4:
 	setp.ne.s16	%p18, %rs2, 2;
 	@%p18 bra 	BB0_7;
 
-	ld.global.f32 	%f4, [%rd4];
-	setp.gt.f32	%p19, %f4, 0f00000000;
+	ld.global.f32 	%f10, [%rd4];
+	setp.gt.f32	%p19, %f10, 0f00000000;
 	@%p19 bra 	BB0_10;
 	bra.uni 	BB0_7;
 
 BB0_10:
-	cvt.rn.f32.f64	%f23, %fd6;
-	st.global.f32 	[%rd3], %f23;
+	st.global.f32 	[%rd3], %f6;
 	mov.u32 	%r21, 0;
 	st.global.u32 	[%rd4], %r21;
-	st.global.f32 	[%rd5], %f1;
+	st.global.f32 	[%rd5], %f7;
 	mov.u32 	%r22, 1115684864;
 	st.global.u32 	[%rd6], %r22;
 	bra.uni 	BB0_12;
@@ -155,35 +151,34 @@ BB0_7:
 
 	ld.global.u16 	%rs3, [%rd7];
 	setp.eq.s16	%p21, %rs3, 1;
-	selp.f64	%fd8, %fd3, %fd8, %p21;
+	selp.f32	%f28, %f3, %f28, %p21;
 
 BB0_9:
 	cvta.to.global.u64 	%rd24, %rd11;
 	mul.wide.s32 	%rd25, %r2, 4;
 	add.s64 	%rd26, %rd24, %rd25;
-	ld.global.f32 	%f5, [%rd26];
+	ld.global.f32 	%f11, [%rd26];
 	add.s64 	%rd28, %rd24, %rd20;
-	ld.global.f32 	%f6, [%rd28];
-	sub.f32 	%f7, %f5, %f6;
-	cvt.rn.f32.f64	%f8, %fd8;
-	fma.rn.f32 	%f9, %f8, %f7, %f6;
+	ld.global.f32 	%f12, [%rd28];
+	sub.f32 	%f13, %f11, %f12;
+	fma.rn.f32 	%f14, %f28, %f13, %f12;
 	mul.wide.s32 	%rd29, %r3, 4;
 	add.s64 	%rd30, %rd24, %rd29;
-	ld.global.f32 	%f10, [%rd30];
-	sub.f32 	%f11, %f10, %f6;
-	fma.rn.f32 	%f12, %f8, %f11, %f9;
-	ld.global.f32 	%f13, [%rd28+-4];
-	sub.f32 	%f14, %f13, %f6;
-	fma.rn.f32 	%f15, %f8, %f14, %f12;
-	ld.global.f32 	%f16, [%rd28+4];
-	sub.f32 	%f17, %f16, %f6;
-	fma.rn.f32 	%f18, %f8, %f17, %f15;
-	ld.global.f32 	%f19, [%rd4];
-	add.f32 	%f20, %f19, %f18;
-	st.global.f32 	[%rd3], %f20;
-	ld.global.f32 	%f21, [%rd5];
-	mul.f32 	%f22, %f21, %f20;
-	st.global.f32 	[%rd3], %f22;
+	ld.global.f32 	%f15, [%rd30];
+	sub.f32 	%f16, %f15, %f12;
+	fma.rn.f32 	%f17, %f28, %f16, %f14;
+	ld.global.f32 	%f18, [%rd28+-4];
+	sub.f32 	%f19, %f18, %f12;
+	fma.rn.f32 	%f20, %f28, %f19, %f17;
+	ld.global.f32 	%f21, [%rd28+4];
+	sub.f32 	%f22, %f21, %f12;
+	fma.rn.f32 	%f23, %f28, %f22, %f20;
+	ld.global.f32 	%f24, [%rd4];
+	add.f32 	%f25, %f24, %f23;
+	st.global.f32 	[%rd3], %f25;
+	ld.global.f32 	%f26, [%rd5];
+	mul.f32 	%f27, %f26, %f25;
+	st.global.f32 	[%rd3], %f27;
 
 BB0_12:
 	ret;
