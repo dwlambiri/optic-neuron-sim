@@ -1,5 +1,5 @@
 
-function propagation_alg_cuda_m01(simIterations, M, itershow)
+function propagation_alg_cuda_m01(simIterations, M, itershow, algo)
 
 gd = gpuDevice();
 reset(gd);
@@ -69,20 +69,21 @@ lowerLimit = 2;
 %Q = parallel.pool.DataQueue;
 %afterEach(Q,@(data) displayImage(fig, data, M.nerve_r));
 
-upperLimit = (N)^2-1;
+upperLimit = (N)^2-2;
 tic
 for i=1:simIterations/2
     %tic
-    [gpox, gamap, gpixb, gMap2, gscav] = feval( kernel, N, gpox, gamap, gpixb, gMap2, gMap1, gscav,gcmap, M.diffInside, M.diffOutside, lowerLimit, upperLimit, M.deathThr, M.deathRelease, 1-M.scavOut ); 
+    [gpox, gamap, gpixb, gMap2, gscav] = feval( kernel, N, gpox, gamap, gpixb, gMap2, gMap1, gscav,gcmap, M.diffInside, M.diffOutside, lowerLimit, upperLimit, M.deathThr, M.deathRelease, 1-M.scavOut, algo ); 
     
     %toc
    
-   [gpox, gamap, gpixb, gMap1, gscav] = feval( kernel, N, gpox, gamap, gpixb, gMap1, gMap2, gscav, gcmap, M.diffInside, M.diffOutside, lowerLimit, upperLimit, M.deathThr, M.deathRelease, 1 - M.scavOut  ); 
+   [gpox, gamap, gpixb, gMap1, gscav] = feval( kernel, N, gpox, gamap, gpixb, gMap1, gMap2, gscav, gcmap, M.diffInside, M.diffOutside, lowerLimit, upperLimit, M.deathThr, M.deathRelease, 1 - M.scavOut, algo  ); 
 
    if mod(i, itershow) == 1
         fprintf('Running simulation: [Iter %d of %d]\n', 2*i, simIterations);
         %fprintf("==>> %d\n",i);
-          rpixel = gather(gMap2);
+          %rpixel = gather(gMap2);
+          rpixel = zeros(size(M.centerMap));
           bpixel = gather(gpixb);
          %bpixel = gather(gpixb);
          pm = cat(3, rpixel, M.centerMap, bpixel);

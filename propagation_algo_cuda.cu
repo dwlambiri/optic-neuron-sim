@@ -13,7 +13,8 @@ __global__  void propagation_algo_cuda(
         int upperLimit,
         float deathThreashold,
         float amountReleasedOnDeath,
-        float  outsideDetox)
+        float  outsideDetox,
+        bool   algo)
 {
 	//int idx = (blockIdx.x * gridDim.y + blockIdx.y) * blockDim.x + threadIdx.x;
     int xidx = blockIdx.x * blockDim.x + threadIdx.x;
@@ -61,14 +62,27 @@ __global__  void propagation_algo_cuda(
        di = dInside; 
     }
     float t = cMap1[index];
-    cMap2[index] = t +
-                (cMap1[indexUp] - t) * di +
-                (cMap1[indexDown] - t) * di +
-                (cMap1[indexLeft] - t) * di +
-                (cMap1[indexRight] - t) * di +
-                tox_prod[index];
+
+    if(algo == true) {
+        cMap2[index] = t +
+
+                    (cMap1[indexUp] - t) * ((centers[indexUp]== -1)?0:di) +
+                    (cMap1[indexDown] - t) * ((centers[indexDown]== -1)?0:di) +
+                    (cMap1[indexLeft] - t) * ((centers[indexLeft]== -1)?0:di) +
+                    (cMap1[indexRight] - t) * ((centers[indexRight]== -1)?0:di) +
+                    tox_prod[index];
+    }
+    else {
+        cMap2[index] = t +
+                (cMap1[indexUp] - t) * (di) +
+                (cMap1[indexDown] - t) * (di) +
+                (cMap1[indexLeft] - t) * (di) +
+                (cMap1[indexRight] - t) * (di) +
+                 tox_prod[index];  
+    }
 
     cMap2[index] *= detox[index];
+               
 /*
     if(cMap2[index] > deathThreashold && tox_prod[index] > 0) {
         cMap2[index] = amountReleasedOnDeath;

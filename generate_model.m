@@ -211,6 +211,7 @@ end
             t6 = 0;
         end
         nerve_r = t1;
+        init_insult = [nerve_r nerve_r];
         min_bundles_dis = t2;
         bundle_r_range = t3;
         neuron_r_range = t4;
