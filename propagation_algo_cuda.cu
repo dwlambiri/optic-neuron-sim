@@ -2,7 +2,7 @@ __global__  void propagation_algo_cuda(
         int N,
         float* tox_prod,
         short* axons,
-        float* blue,
+        unsigned char* blue,
         float* cMap2,
         const float* cMap1,
         float* detox,
@@ -14,7 +14,8 @@ __global__  void propagation_algo_cuda(
         float deathThreashold,
         float amountReleasedOnDeath,
         float  outsideDetox,
-        bool   algo)
+        bool   algo,
+        float* deathThr)
 {
 	//int idx = (blockIdx.x * gridDim.y + blockIdx.y) * blockDim.x + threadIdx.x;
     int xidx = blockIdx.x * blockDim.x + threadIdx.x;
@@ -25,6 +26,13 @@ __global__  void propagation_algo_cuda(
     int indexDown = (yidx+1)*N + xidx;
     int indexLeft = yidx*N + xidx -1;
     int indexRight = yidx*N + xidx+1;
+
+    const short aliveAxon_c = 1;
+    const short deadAxon_c  = 2;
+    const short noAxon_c    = -1;
+
+    const int stopProduction_c = 0;
+    const unsigned char blueSky_c = 255;
 
     
     if((indexUp < lowerLimit) || (indexDown < lowerLimit) || (indexLeft < lowerLimit) || (indexRight < lowerLimit)) {
@@ -37,30 +45,31 @@ __global__  void propagation_algo_cuda(
    
     int centerIndex = centers[index];
 
-    if(axons[index] == 1){
-      if(cMap2[index] > deathThreashold) {
-        cMap2[index] = amountReleasedOnDeath;
-        tox_prod[index] = 0; 
-        axons[index] = 2;
-        blue[index] = 64;
+    float extraAmount = 0;
+
+    if(axons[index] == aliveAxon_c){
+      if(cMap1[index] > deathThr[index]) {
+        axons[index] = deadAxon_c;
+        extraAmount = amountReleasedOnDeath;
+        tox_prod[index] = stopProduction_c;
         detox[index] = outsideDetox;
-        return;
+        blue[index] = blueSky_c;
       }
     }
-
-    if(centerIndex > 0 && axons[centerIndex-1] ==2 && tox_prod[index] > 0) {
-        cMap2[index] = amountReleasedOnDeath;
-        tox_prod[index] = 0;
+    
+    if(centerIndex > 0 && axons[centerIndex-1] == deadAxon_c && tox_prod[index] > 0) {
+        extraAmount = amountReleasedOnDeath;
+        tox_prod[index] = stopProduction_c;
         detox[index] = outsideDetox;
-        blue[index] = 64;
-        return;
+        blue[index] = blueSky_c;
     }
 
     float di = dOutside;
 
-    if(centerIndex > 0 && axons[centerIndex-1] == 1) {
+    if(centerIndex > 0 && axons[centerIndex-1] == aliveAxon_c) {
        di = dInside; 
     }
+
     float t = cMap1[index];
 
     if(algo == true) {
@@ -70,7 +79,7 @@ __global__  void propagation_algo_cuda(
                     (cMap1[indexDown] - t) * ((centers[indexDown]== -1)?0:di) +
                     (cMap1[indexLeft] - t) * ((centers[indexLeft]== -1)?0:di) +
                     (cMap1[indexRight] - t) * ((centers[indexRight]== -1)?0:di) +
-                    tox_prod[index];
+                    tox_prod[index] + extraAmount;
     }
     else {
         cMap2[index] = t +
@@ -78,7 +87,7 @@ __global__  void propagation_algo_cuda(
                 (cMap1[indexDown] - t) * (di) +
                 (cMap1[indexLeft] - t) * (di) +
                 (cMap1[indexRight] - t) * (di) +
-                 tox_prod[index];  
+                 tox_prod[index] + extraAmount;  
     }
 
     cMap2[index] *= detox[index];

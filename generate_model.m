@@ -28,8 +28,9 @@ f = @(g) (cellfun(@(x) ischar(x) && strcmp(x,g), varargin));
         end
     end
 
-neuron_scale = read_pair('neuron_scale', 30);
-nerve_r = read_pair('nerve_r', 1500);
+neuron_scale = read_pair('neuron_scale', 10);
+model_resolution = read_pair('resolution', 10); % model resolution in pixels/um
+nerve_r = read_pair('nerve_r', 750);
 bundle_r_range = read_pair('bundle_r_range', [nerve_r-1 nerve_r]);
 min_bundles_dis = read_pair('min_bundles_dis', 0);
 neuron_r_range = [1.5 30]; % because of 10 pixels/um and radius
@@ -39,13 +40,13 @@ modelFileName = read_pair('file', []);
 imageFile = read_pair('image', []);
 mielinWidth = read_pair('mielin', 5);
 init_insult = read_pair('init_insult', [nerve_r nerve_r]);
-insultAmount = read_pair('insult_amount', 25);
+insultAmount = read_pair('insult_amount', 0);
 insultRadius = read_pair('insult_radius', nerve_r/5);
-scavIn = read_pair('scavenging_intra', 0.01);
-scavOut = read_pair('scavenging_out', 0.001);
-prodAmount = read_pair('production_amount', 0.01);
-deathThr   = read_pair('death_threashold', 22);
-deathRelease = read_pair('death_release', 10000);
+scavIn = read_pair('scavenging_intra', 0.001);
+scavOut = read_pair('scavenging_out', 0.0001);
+prodAmount = read_pair('production_amount', 0.0045);
+deathThr   = read_pair('death_threashold', 5);
+deathRelease = read_pair('death_release', 0);
 diffusionInside = read_pair('diffusion_inside', 0.02);
 diffusionOutside = read_pair('diffusion_outside', 0.02);
 diffusionBoundary = read_pair('diffusion_boundary', 0.02);
@@ -119,6 +120,9 @@ if any(f('GUI'))
     M.ax_ui = ax_ui;
     
     h_feedback = pair_text('Status: ', [.05 .92], []); h_feedback.Position = [.13 .92 .8 .05]; h_feedback.Enable = 'off';
+    
+    h_neuron_scale = pair_text('Neuron Scale', [.82 .9], neuron_scale);
+    h_model_scale  = pair_text('Resolution', [.82 .85], model_resolution);
     h_nerv_r = pair_text('Nerve Radius:', [.82 .8], nerve_r);
     h_min_dis = pair_text('Min Clearance', [.82 .75], min_bundles_dis);
     h_bundle_r_range = pair_text('Bundle Radius Range:', [.82 .7], bundle_r_range);
@@ -127,7 +131,7 @@ if any(f('GUI'))
     h_mielin = pair_text('Max Mielin Width:', [.82 .55], mielinWidth);
     h_modelFile = pair_text('Model File:', [.82 .5], modelFileName);
     
-    %h_neuron_scale = pair_text('Neuron Scale', [.82 .5], neuron_scale);
+    
     uicontrol('style','pushbutton', 'Units','Normalized', 'position', [.84 .4 .12 .05], 'String', 'Load Model', 'Callback', @loadModel);
     uicontrol('style','pushbutton', 'Units','Normalized', 'position', [.84 .35 .12 .05], 'String', 'Save Model', 'Callback', @saveModel);
     uicontrol('style','pushbutton', 'Units','Normalized', 'position', [.84 .3 .12 .05], 'String', 'Gen Bundles', 'Callback', @genBundle);
@@ -195,6 +199,8 @@ end
         t4 = str2num(h_neuron_r_range.String);
         t5 = h_image_file.String;
         t6 = str2num(h_mielin.String);
+        t7 = str2num(h_neuron_scale.String);
+        t8 = str2num(h_model_scale.String);
         if isempty(t1) || ~all(size(t1) == [1 1])
             h_feedback.String = 'Bad Nerve Radius!';
             return;
@@ -217,7 +223,8 @@ end
         neuron_r_range = t4;
         imageFile = t5;
         mielinWidth = t6;
-        
+        neuron_scale = t7;
+        model_resolution = t8;
         n_tries = 20;
         bund_g = [];
         while isempty(bund_g) && n_tries > 0
@@ -467,6 +474,7 @@ end
         axonMap = -1*ones(2*nerve_r, 2*nerve_r);
         concentrationMap1 = zeros(2*nerve_r, 2*nerve_r);
         concentrationMap2 = zeros(2*nerve_r, 2*nerve_r);
+        axonDeathValue = zeros(2*nerve_r, 2*nerve_r);
         poxMap = zeros(2*nerve_r, 2*nerve_r);
         scavMap = zeros(2*nerve_r, 2*nerve_r);
         
@@ -500,6 +508,8 @@ end
         
         
         bconst = 500000; % [DWL] need some formula based on bundles; large enough for now.
+        %temp = nerve_r / sqrt(2);
+        %lenAdjust = 1;
         for k = 1:n_bunds
             lb  = size(neuron_g{k}, 2);
             for q =1: lb
@@ -514,6 +524,7 @@ end
                 xcn = floor(xc)+nerve_r;
                 ycn = nerve_r - floor(yc);
                 axonMap(ycn, xcn) = 1;
+                axonDeathValue(ycn, xcn) = deathThr*(1+4*xcn/(2*nerve_r));
                 for i = ymin:ymax
                     for j = xmin:xmax
                         if sqrt((i-ycn)^2+(j-xcn)^2) <= (r+m)
@@ -551,7 +562,7 @@ end
                     % the production is proportional to the *perimeter*
                     % which is 2*pi*r. pox*pi*r^2 = 2*prod/r*pi*r^2 =
                     % 2*pi*prod*r ==>> total poxProd per neuron ~2*pi*r
-                    poxMap(i,j) = 2*prodAmount/neuron(3);
+                    poxMap(i,j) = 2*prodAmount/(neuron(3)/10);
                     scavMap(i,j) = (1-scavIn);
                 else
                     %pixel is part of connecting tissue
@@ -581,6 +592,7 @@ end
         M.centerMap = centerMap;
         M.poxMap = poxMap;
         M.scavMap = scavMap;
+        M.axonDeathValue = axonDeathValue;
         M.diffInside = diffusionInside;
         M.diffBorder = diffusionBoundary;
         M.diffOutside = diffusionOutside;

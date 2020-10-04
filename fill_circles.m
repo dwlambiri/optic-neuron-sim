@@ -33,15 +33,10 @@ if median_r_value
     %n_max_circles = ceil((main_r / mode_r_value)^2/6);
     % max circles = (114*1000*Area + 218000)*reduction
     %variability = 1 + (mod((rand()*100),20))/100;
-    variability = 1;
+    variability = 3;
 
-    calc_r = main_r;
-    % if we calculate num neurons consider the higher density in 
-    % non mielinated areas
-    if isempty(mielin) || mielin == 0
-        calc_r = 1500/900*main_r;
-    end
-    n_max = ceil(variability*(114000*3.1415*(calc_r/1000)^2 + 218000)*(1/10)^2);
+
+    n_max = ceil(variability*1200000*(main_r/7500)^2);
     if zoned
         per_zone_neurons = [.11 .18 .24 .24 .18 .11];
         %divider = 5;
@@ -66,7 +61,7 @@ if median_r_value
         
         %radius_set_tmp = radius_set_tmp;
         %radius_set_tmp = radius_set_tmp(1:length(radius_set_tmp));
-        radius_set_tmp = sort(radius_set_tmp, 'descend');
+        %radius_set_tmp = sort(radius_set_tmp, 'descend');
         
         radius_set(1:length(radius_set_tmp),i) = radius_set_tmp;
         n_max_circles(i) = min(floor(n_max*per_zone_neurons(i)), length(radius_set_tmp));
@@ -281,6 +276,7 @@ for zoneIter = 1:nz
     if n_tries >= max_n_tries
                 n_tries = max_n_tries; 
     end
+    %n_tries = max_n_tries; 
     
     %fprintf(" Hard = %d Tries = %d\n", hard, n_tries);
     %n_tries = (dens + k);

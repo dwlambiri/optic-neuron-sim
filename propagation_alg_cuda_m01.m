@@ -1,5 +1,5 @@
 
-function propagation_alg_cuda_m01(simIterations, M, itershow, algo)
+function propagation_alg_cuda_m01(simIterations, M, itershow, algo, showTox)
 
 gd = gpuDevice();
 reset(gd);
@@ -57,8 +57,9 @@ gpox  = gpuArray(cast(M.poxMap, 'single'));
 gscav = gpuArray(cast(M.scavMap,'single'));
 gamap = gpuArray(cast(M.axonMap, 'int16'));
 gcmap = gpuArray(cast(M.centerMap, 'single'));
+gtmap = gpuArray(cast(M.axonDeathValue, 'single'));
 %gpixg  = gpuArray(M.pixelMap(:,:,2));
-gpixb  = gpuArray(cast(zeros(N),'single'));
+gpixb  = gpuArray(cast(zeros(N),'uint8'));
 
 
 fprintf('Running simulation .... \n');
@@ -73,21 +74,22 @@ upperLimit = (N)^2-2;
 tic
 for i=1:simIterations/2
     %tic
-    [gpox, gamap, gpixb, gMap2, gscav] = feval( kernel, N, gpox, gamap, gpixb, gMap2, gMap1, gscav,gcmap, M.diffInside, M.diffOutside, lowerLimit, upperLimit, M.deathThr, M.deathRelease, 1-M.scavOut, algo ); 
+    [gpox, gamap, gpixb, gMap2, gscav] = feval( kernel, N, gpox, gamap, gpixb, gMap2, gMap1, gscav,gcmap, M.diffInside, M.diffOutside, lowerLimit, upperLimit, M.deathThr, M.deathRelease, 1-M.scavOut, algo, gtmap ); 
     
     %toc
    
-   [gpox, gamap, gpixb, gMap1, gscav] = feval( kernel, N, gpox, gamap, gpixb, gMap1, gMap2, gscav, gcmap, M.diffInside, M.diffOutside, lowerLimit, upperLimit, M.deathThr, M.deathRelease, 1 - M.scavOut, algo  ); 
+   [gpox, gamap, gpixb, gMap1, gscav] = feval( kernel, N, gpox, gamap, gpixb, gMap1, gMap2, gscav, gcmap, M.diffInside, M.diffOutside, lowerLimit, upperLimit, M.deathThr, M.deathRelease, 1 - M.scavOut, algo, gtmap ); 
 
    if mod(i, itershow) == 1
         fprintf('Running simulation: [Iter %d of %d]\n', 2*i, simIterations);
-        %fprintf("==>> %d\n",i);
-          %rpixel = gather(gMap2);
-          rpixel = zeros(size(M.centerMap));
-          bpixel = gather(gpixb);
-         %bpixel = gather(gpixb);
-         pm = cat(3, rpixel, M.centerMap, bpixel);
-         displayImage(fig, pm, M.nerve_r);
+         %pm = cat(3, gMap1, gMap1, gMap1);
+         if showTox
+             cla reset; imagesc(gMap1); drawnow('limitrate'); 
+         else
+             cla reset; imagesc(gpixb); drawnow('limitrate'); 
+         end
+          
+         %displayImage(fig, pm, M.nerve_r);
         %                plot_model('pixelmap');
    end
 end
