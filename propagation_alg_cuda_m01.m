@@ -51,8 +51,11 @@ if M.spaceMap(yinsult,xinsult) < 0
 end
 
 
-gMap1 = gpuArray(cast(M.cMap1, 'single'));
-gMap2 = gpuArray(cast(M.cMap2, 'single'));
+gMap = gpuArray(cast( cat(3, M.cMap1, M.cMap1), 'single'));
+%gMap1 = gMap(:,:,1);
+%gMap2 = gMap(:,:,2);
+%gMap1 = gpuArray(cast(M.cMap1, 'single'));
+%gMap2 = gpuArray(cast(M.cMap2, 'single'));
 gpox  = gpuArray(cast(M.poxMap, 'single'));
 gscav = gpuArray(cast(M.scavMap,'single'));
 gamap = gpuArray(cast(M.axonMap, 'int16'));
@@ -72,19 +75,19 @@ lowerLimit = 2;
 
 upperLimit = (N)^2-2;
 tic
-for i=1:simIterations/2
+for i=1:simIterations
     %tic
-    [gpox, gamap, gpixb, gMap2, gscav] = feval( kernel, N, gpox, gamap, gpixb, gMap2, gMap1, gscav,gcmap, M.diffInside, M.diffOutside, lowerLimit, upperLimit, M.deathThr, M.deathRelease, 1-M.scavOut, algo, gtmap ); 
+    [gpox, gamap, gpixb, gMap(:,:,2-mod(i,2)), gscav] = feval( kernel, N, gpox, gamap, gpixb, gMap(:,:,2- mod(i,2)), gMap(:,:,1+mod(i,2)), gscav,gcmap, M.diffInside, M.diffOutside, lowerLimit, upperLimit, M.deathThr, M.deathRelease, 1-M.scavOut, algo, gtmap ); 
     
     %toc
    
-   [gpox, gamap, gpixb, gMap1, gscav] = feval( kernel, N, gpox, gamap, gpixb, gMap1, gMap2, gscav, gcmap, M.diffInside, M.diffOutside, lowerLimit, upperLimit, M.deathThr, M.deathRelease, 1 - M.scavOut, algo, gtmap ); 
+   %[gpox, gamap, gpixb, gMap(:,:,1), gscav] = feval( kernel, N, gpox, gamap, gpixb, gMap(:,:,1), gMap(:,:,2), gscav, gcmap, M.diffInside, M.diffOutside, lowerLimit, upperLimit, M.deathThr, M.deathRelease, 1 - M.scavOut, algo, gtmap ); 
 
    if mod(i, itershow) == 1
-        fprintf('Running simulation: [Iter %d of %d]\n', 2*i, simIterations);
+        fprintf('Running simulation: [Iter %d of %d]\n', i, simIterations);
          %pm = cat(3, gMap1, gMap1, gMap1);
          if showTox
-             cla reset; imagesc(gMap1); drawnow('limitrate'); 
+             cla reset; imagesc(gMap(:,:,1)); drawnow('limitrate'); 
          else
              cla reset; imagesc(gpixb); drawnow('limitrate'); 
          end
