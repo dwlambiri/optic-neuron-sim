@@ -45,6 +45,9 @@ __global__  void propagation_algo_cuda(
    
     int centerIndex = centers[index];
 
+    if(centerIndex < 0 ) 
+        return;
+
     float extraAmount = 0;
 
     if(axons[index] == aliveAxon_c){

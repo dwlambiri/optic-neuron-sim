@@ -1,3 +1,5 @@
+function res07(domean)
+
 z1 =  [
 42.40%
 41.30%
@@ -1651,28 +1653,29 @@ Z7 = reshape(z7, [ydimsize+10 xdimsize]);
 Z8 = reshape(z8, [ydimsize+10 xdimsize]);
 Z9 = reshape(z9, [ydimsize+10 xdimsize]);
 Z10 = reshape(z10, [ydimsize+10 xdimsize]);
-
-% s1= std(Z1(1:6,:));
-% s2= std(Z2(1:6,:));
-% s3= std(Z3(1:6,:));
-% s4= std(Z4(1:6,:));
-% s5= std(Z5(1:6,:));
-% s6= std(Z6(1:6,:));
-% s7= std(Z7(1:6,:));
-% s8= std(Z8(1:6,:));
-% s9= std(Z9(1:6,:));
-% s10= std(Z10(1:6,:));
-
-s1= mean(Z1(1:6,:));
-s2= mean(Z2(1:6,:));
-s3= mean(Z3(1:6,:));
-s4= mean(Z4(1:6,:));
-s5= mean(Z5(1:6,:));
-s6= mean(Z6(1:6,:));
-s7= mean(Z7(1:6,:));
-s8= mean(Z8(1:6,:));
-s9= mean(Z9(1:6,:));
-s10= mean(Z10(1:6,:));
+if ~domean
+    s1= std(Z1(1:6,:));
+    s2= std(Z2(1:6,:));
+    s3= std(Z3(1:6,:));
+    s4= std(Z4(1:6,:));
+    s5= std(Z5(1:6,:));
+    s6= std(Z6(1:6,:));
+    s7= std(Z7(1:6,:));
+    s8= std(Z8(1:6,:));
+    s9= std(Z9(1:6,:));
+    s10= std(Z10(1:6,:));
+else
+    s1= mean(Z1(1:6,:));
+    s2= mean(Z2(1:6,:));
+    s3= mean(Z3(1:6,:));
+    s4= mean(Z4(1:6,:));
+    s5= mean(Z5(1:6,:));
+    s6= mean(Z6(1:6,:));
+    s7= mean(Z7(1:6,:));
+    s8= mean(Z8(1:6,:));
+    s9= mean(Z9(1:6,:));
+    s10= mean(Z10(1:6,:));
+end
 
 q = cat(1, s1,s2,s3,s4,s5,s6,s7,s8,s9,s10);
 
@@ -1682,4 +1685,5 @@ y = linspace(1, 10, xdimsize);
 
 figure; surf(Y, X , q);
 xlabel('Model No'); ylabel('diff coeff'); zlabel('std');
-title('alive =f(diff, res) @thres = 20 prod = 0.005 @deathExtra = 40');
+title('10% Model alive =f(diff, res) @thres = 20 prod = 0.005 @deathExtra = 40');
+end

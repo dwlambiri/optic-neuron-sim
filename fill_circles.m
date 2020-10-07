@@ -1,7 +1,7 @@
 % Output: first row center_x
 %    second row: center_y
 %    third row: raduis
-function [geom, blood] = fill_circles(h_feedback, median_r_value, main_r, dens, r_range, min_dis, hard, obstacles, circleCenters, zoned, mielin)
+function [geom, blood] = fill_circles(h_feedback, median_r_value, main_r, dens, r_range, min_dis, hard, obstacles, circleCenters, zoned, mielin, OPTIC_FULL_RADIUS_PIX_C)
 
 Rand = @(siz, m) min(m) + rand(siz)*diff(m);
 RandSq = @(siz, m) [ min(m(1,:))+rand(siz(1),1)*diff(m(1,:)) min(m(2,:))+rand(siz(1),1)*diff(m(2,:))];
@@ -36,7 +36,7 @@ if median_r_value
     variability = 3;
 
 
-    n_max = ceil(variability*1200000*(main_r/7500)^2);
+    n_max = ceil(variability*1200000*(main_r/OPTIC_FULL_RADIUS_PIX_C)^2);
     if zoned
         per_zone_neurons = [.11 .18 .24 .24 .18 .11];
         %divider = 5;

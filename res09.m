@@ -687,5 +687,5 @@ y = linspace(1, 10, xdimsize);
 
 figure; surf(Y, X , q);
 xlabel('Model No'); ylabel('diff coeff'); zlabel('std');
-title('alive =f(diff, res) @thres = 20 prod = 0.005 @deathExtra = 40');
+title('20% Model alive =f(diff, res) @thres = 20 prod = 0.005 @deathExtra = 40');
 end

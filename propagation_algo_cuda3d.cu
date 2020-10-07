@@ -50,6 +50,9 @@ __global__  void propagation_algo_cuda3d(
    
     int centerIndex = centers[index];
 
+    if(centerIndex < 0 ) 
+        return;
+
     float extraAmount = 0;
 
     if(axons[index] == aliveAxon_c){
@@ -82,7 +85,7 @@ __global__  void propagation_algo_cuda3d(
                     (cMap[indexUp] - t) * ((centers[indexUp]== -1)?0:di) +
                     (cMap[indexDown] - t) * ((centers[indexDown]== -1)?0:di) +
                     (cMap[indexLeft] - t) * ((centers[indexLeft]== -1)?0:di) +
-                    (cMap[indexRight] - t) * ((centers[indexRight]== -1)?0:di);
+                    (cMap[indexRight] - t) * ((centers[indexRight]== -1)?0:di) + extraAmount;
 
                     if((top == false) && (bottom == false)) {
                         cMapResult[index] += (cMapUp[index] - t)*di +
@@ -95,7 +98,7 @@ __global__  void propagation_algo_cuda3d(
                         cMapResult[index] += (cMapUp[index] -t)*di;
                     }
                     if(injury == true) {
-                        cMapResult[index] += tox_prod[index] + extraAmount;
+                        cMapResult[index] += tox_prod[index];
                     }
     }
     else {
@@ -103,7 +106,7 @@ __global__  void propagation_algo_cuda3d(
                 (cMap[indexUp] - t) * (di) +
                 (cMap[indexDown] - t) * (di) +
                 (cMap[indexLeft] - t) * (di) +
-                (cMap[indexRight] - t) * (di); 
+                (cMap[indexRight] - t) * (di) + extraAmount; 
         if((top == false) && (bottom == false)) {
             cMapResult[index] += (cMapUp[index] - t)*di +
                     (cMapDown[index] -t)*di;
@@ -115,18 +118,10 @@ __global__  void propagation_algo_cuda3d(
             cMapResult[index] += (cMapUp[index] -t)*di;
         }
         if(injury == true) {
-            cMapResult[index] += tox_prod[index] + extraAmount;
+            cMapResult[index] += tox_prod[index];
         }
     }
 
     cMapResult[index] *= detox[index];
-               
-/*
-    if(cMapResult[index] > deathThreashold && tox_prod[index] > 0) {
-        cMapResult[index] = amountReleasedOnDeath;
-        tox_prod[index] = 0; 
-        return;
-    }
-*/      
-    
+                  
 }

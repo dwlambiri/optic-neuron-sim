@@ -25,7 +25,7 @@ ptxFilename =  strcat(filePrefix, '.ptx');
 kernel = parallel.gpu.CUDAKernel( ptxFilename, cudaFilename );
 
 threadPerBlock = 32;
-N = 2*M.nerve_r;
+N = 2*M.opticNerveRadiusPixels;
 kernel.ThreadBlockSize = [ threadPerBlock, threadPerBlock,1];
 kernel.GridSize = [ceil(N/threadPerBlock), ceil(N/threadPerBlock),1 ];
 
@@ -55,7 +55,6 @@ gMap = gpuArray(cast( cat(3, M.cMap1, M.cMap1), 'single'));
 %gMap1 = gMap(:,:,1);
 %gMap2 = gMap(:,:,2);
 %gMap1 = gpuArray(cast(M.cMap1, 'single'));
-%gMap2 = gpuArray(cast(M.cMap2, 'single'));
 gpox  = gpuArray(cast(M.poxMap, 'single'));
 gscav = gpuArray(cast(M.scavMap,'single'));
 gamap = gpuArray(cast(M.axonMap, 'int16'));
@@ -71,13 +70,13 @@ fig = figure();
 lowerLimit = 2;
 
 %Q = parallel.pool.DataQueue;
-%afterEach(Q,@(data) displayImage(fig, data, M.nerve_r));
+%afterEach(Q,@(data) displayImage(fig, data, M.opticNerveRadiusPixels));
 
 upperLimit = (N)^2-2;
 tic
 for i=1:simIterations
     %tic
-    [gpox, gamap, gpixb, gMap(:,:,2-mod(i,2)), gscav] = feval( kernel, N, gpox, gamap, gpixb, gMap(:,:,2- mod(i,2)), gMap(:,:,1+mod(i,2)), gscav,gcmap, M.diffInside, M.diffOutside, lowerLimit, upperLimit, M.deathThr, M.deathRelease, 1-M.scavOut, algo, gtmap ); 
+    [gpox, gamap, gpixb, gMap(:,:,2-mod(i,2)), gscav] = feval( kernel, N, gpox, gamap, gpixb, gMap(:,:,2- mod(i,2)), gMap(:,:,1+mod(i,2)), gscav,gcmap, M.diffValues(M.diffInside), M.diffValues(M.diffOutside), lowerLimit, upperLimit, M.deathToxThreshold_r, M.extraToxReleaseOnDeath_r, 1-M.scavOutsideAxon_r, algo, gtmap ); 
     
     %toc
    

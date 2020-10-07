@@ -2,11 +2,11 @@ function M = generate_model(varargin)
 % GENERATE_MODEL
 % parameters:
 %   Type, Value
-%       neuron_scale
-%       nerve_r
+%       opticNerveScale_r
+%       opticNerveRadius_r
 %       min_bundle_dis
-%       neuron_r_range
-%       neuron_dens
+%       axonRadiusRange_r
+%       axonDensity_r
 %       file
 %   Binary
 %       rewrite
@@ -28,29 +28,32 @@ f = @(g) (cellfun(@(x) ischar(x) && strcmp(x,g), varargin));
         end
     end
 
-neuron_scale = read_pair('neuron_scale', 10);
-model_resolution = read_pair('resolution', 10); % model resolution in pixels/um
-nerve_r = read_pair('nerve_r', 750);
-bundle_r_range = read_pair('bundle_r_range', [nerve_r-1 nerve_r]);
-min_bundles_dis = read_pair('min_bundles_dis', 0);
-neuron_r_range = [1.5 30]; % because of 10 pixels/um and radius
-neuron_dens = read_pair('neuron_dens', 1);
-refine = read_pair('refine', 0);
-modelFileName = read_pair('file', []);
-imageFile = read_pair('image', []);
-mielinWidth = read_pair('mielin', 5);
-init_insult = read_pair('init_insult', [nerve_r nerve_r]);
+OPTIC_NERVE_RADIUS_C = 750 % optic nerve radius
+
+opticNerveScale_r = read_pair('optic_nerve_scale', 10);
+modelResolution_r = read_pair('resolution', 10); % model resolution in pixels/um
+opticNerveRadius_r = ceil(OPTIC_NERVE_RADIUS_C * modelResolution_r * opticNerveScale_r / 100);
+bundleRadiusRange_r = read_pair('bundle_radius_range', [opticNerveRadius_r-1 opticNerveRadius_r]);
+minBundleDistance_r = read_pair('min_bundle_distance', 0);
+axonRadiusRange_r = [0.15 3]; % in um
+axonDensity_r = read_pair('axon_density', 1);
+refine_r = read_pair('refine', 0);
+modelFileName_r = read_pair('model_file', []);
+opticalNervePatternImageFile_r = read_pair('pattern_file', []);
+mielinWidth_r = read_pair('mielin_width', 5);
+init_insult = read_pair('init_insult', [opticNerveRadius_r opticNerveRadius_r]);
 insultAmount = read_pair('insult_amount', 0);
-insultRadius = read_pair('insult_radius', nerve_r/5);
-scavIn = read_pair('scavenging_intra', 0.001);
-scavOut = read_pair('scavenging_out', 0.0001);
-prodAmount = read_pair('production_amount', 0.0045);
-deathThr   = read_pair('death_threashold', 5);
-deathRelease = read_pair('death_release', 0);
-diffusionInside = read_pair('diffusion_inside', 0.02);
-diffusionOutside = read_pair('diffusion_outside', 0.02);
-diffusionBoundary = read_pair('diffusion_boundary', 0.02);
-simIterations = read_pair('iterations', 5000);
+insultRadius = read_pair('insult_radius', opticNerveRadius_r/5);
+scanInsideAxon_r = read_pair('scav_intra_axon', 0.001);
+scavOutsideAxon_r = read_pair('scav_outside_axon', 0.0001);
+toxProductionPerArea_r = read_pair('production_amount', 0.0045);
+deathToxThreshold_r   = read_pair('death_tox_threashold', 5);
+extraToxReleaseOnDeath_r = read_pair('death_tox_release', 0);
+diffusionDeadAxon_r = read_pair('diffusion_dead', 0.02);
+diffusionInsideAxon_r = read_pair('diffusion_inside', 0.02);
+diffusionOutsideAxon_r = read_pair('diffusion_outside', 0.02);
+diffusionAxonBoundary_r = read_pair('diffusion_boundary', 0.02);
+simIterations_r = read_pair('iterations', 5000);
 
 if any(f('zoned'))
     zoned_r = true;
@@ -64,18 +67,18 @@ obstaclesOnBundles = true;
 oni = [];
 
 
-if isempty(imageFile)
-    imageFile = 'optic-nerve.png';
+if isempty(opticalNervePatternImageFile_r)
+    opticalNervePatternImageFile_r = 'optic-nerve.png';
 end
 
-if ~exist( imageFile, 'file')
-    fprintf('Cannot load image file %s\n', imageFile);
+if ~exist( opticalNervePatternImageFile_r, 'file')
+    fprintf('Cannot load image file %s\n', opticalNervePatternImageFile_r);
     M.onibigbw = [];
     %return;
 else
-    oni = imread(imageFile);
+    oni = imread(opticalNervePatternImageFile_r);
     osz = size(oni);
-    f1 = nerve_r*2/osz(1);
+    f1 = opticNerveRadius_r*2/osz(1);
     onibig = imresize(oni, f1, 'bicubic');
     M.onibigbw = imbinarize(rgb2gray(onibig),'adaptive');
 end
@@ -85,16 +88,16 @@ end
 
 M = struct;
 
-if ~isempty(modelFileName)
-    file_full_addr = ['models\' modelFileName];
+if ~isempty(modelFileName_r)
+    file_full_addr = ['models\' modelFileName_r];
     if exist(file_full_addr,'file') && ~any(f('rewrite'))
-        fprintf('Reading existing model: %s\n', modelFileName);
+        fprintf('Reading existing model: %s\n', modelFileName_r);
         load(file_full_addr, 'M');
         if any(f('plot_model')), M.plot.model(); end
         return;
     end
 else
-    modelFileName = 'temp.mat';
+    modelFileName_r = 'temp.mat';
    file_full_addr = ['models\temp.mat'];
 end
 
@@ -121,15 +124,19 @@ if any(f('GUI'))
     
     h_feedback = pair_text('Status: ', [.05 .92], []); h_feedback.Position = [.13 .92 .8 .05]; h_feedback.Enable = 'off';
     
-    h_neuron_scale = pair_text('Neuron Scale', [.82 .9], neuron_scale);
-    h_model_scale  = pair_text('Resolution', [.82 .85], model_resolution);
-    h_nerv_r = pair_text('Nerve Radius:', [.82 .8], nerve_r);
-    h_min_dis = pair_text('Min Clearance', [.82 .75], min_bundles_dis);
-    h_bundle_r_range = pair_text('Bundle Radius Range:', [.82 .7], bundle_r_range);
-    h_neuron_r_range = pair_text('Neuron Radius:', [.82 .65], neuron_r_range);
-    h_image_file = pair_text('Image File:', [.82 .6], imageFile);
-    h_mielin = pair_text('Max Mielin Width:', [.82 .55], mielinWidth);
-    h_modelFile = pair_text('Model File:', [.82 .5], modelFileName);
+    
+    h_nerv_r = pair_text('Radius 750 um :', [.82 .9], []); h_nerv_r.Enable = 'off';
+    h_nerv_r = sprintf('%d pix', opticNerveRadius_r);
+    
+    h_opticNerveScale_r = pair_text('Scale (%)', [.82 .85], opticNerveScale_r);
+    h_model_res  = pair_text('Res (pix/um)', [.82 .8], modelResolution_r);
+    
+    h_min_dis = pair_text('Min Clearance', [.82 .75], minBundleDistance_r);
+    h_bundleRadiusRange_r = pair_text('Bundle Radius Range:', [.82 .7], bundleRadiusRange_r);
+    h_axonRadiusRange_r = pair_text('Axon Range (um):', [.82 .65], axonRadiusRange_r);
+    h_image_file = pair_text('Pattern File:', [.82 .6], opticalNervePatternImageFile_r);
+    h_mielin = pair_text('Max Mielin Width:', [.82 .55], mielinWidth_r);
+    h_modelFile = pair_text('Model File:', [.82 .5], modelFileName_r);
     
     
     uicontrol('style','pushbutton', 'Units','Normalized', 'position', [.84 .4 .12 .05], 'String', 'Load Model', 'Callback', @loadModel);
@@ -146,7 +153,7 @@ if any(f('GUI'))
 else
     n_tries = 20;
     while isempty(bund_g) && n_tries > 0
-        [bund_g, b] = fill_circles(h_feedback,0, nerve_r, bundle_dens, bundle_r_range, min_bundles_dis, 7, ~obstaclesOnBundles, [], false, 0);
+        [bund_g, b] = fill_circles(h_feedback,0, opticNerveRadius_r, bundle_dens, bundleRadiusRange_r, minBundleDistance_r, 7, ~obstaclesOnBundles, [], false, 0);
         n_tries = n_tries - 1;
         fprintf("Fill Circles: try# %d\n", n_tries);
     end
@@ -193,42 +200,42 @@ end
     end
 
     function genBundle(~,~)
-        t1 = str2num(h_nerv_r.String); %#ok<*ST2NM>
+        
         t2 = str2num(h_min_dis.String);
-        t3 = str2num(h_bundle_r_range.String);
-        t4 = str2num(h_neuron_r_range.String);
+        t4 = str2num(h_axonRadiusRange_r.String);
         t5 = h_image_file.String;
         t6 = str2num(h_mielin.String);
-        t7 = str2num(h_neuron_scale.String);
-        t8 = str2num(h_model_scale.String);
-        if isempty(t1) || ~all(size(t1) == [1 1])
-            h_feedback.String = 'Bad Nerve Radius!';
-            return;
-        end
+        t7 = str2num(h_opticNerveScale_r.String);
+        t8 = str2num(h_model_res.String);
+        
         if isempty(t2) || ~all(size(t2) == [1 1])
             h_feedback.String = 'Bad Bundle Density!';
-            return;
-        end
-        if isempty(t3) || ~all(size(t3) == [1 2])
-            h_feedback.String = 'Bad Bundle Radius Range!';
             return;
         end
         if isempty(t6)
             t6 = 0;
         end
-        nerve_r = t1;
-        init_insult = [nerve_r nerve_r];
-        min_bundles_dis = t2;
-        bundle_r_range = t3;
-        neuron_r_range = t4;
-        imageFile = t5;
-        mielinWidth = t6;
-        neuron_scale = t7;
-        model_resolution = t8;
+        
+        opticNerveRadius_r = ceil(OPTIC_NERVE_RADIUS_C * modelResolution_r * opticNerveScale_r / 100);
+        
+        h_nerv_r = sprintf('%d pix', opticNerveRadius_r);
+        
+        init_insult = [opticNerveRadius_r opticNerveRadius_r];
+        minBundleDistance_r = t2;
+        bundleRadiusRange_r = [opticNerveRadius_r-1 opticNerveRadius_r];
+        h_bundleRadiusRange_r = sprintf('[%d %d]', opticNerveRadius_r-1, opticNerveRadius_r);
+        axonRadiusRange_r = t4;
+        opticalNervePatternImageFile_r = t5;
+        mielinWidth_r = t6;
+        opticNerveScale_r = t7;
+        modelResolution_r = t8;
         n_tries = 20;
         bund_g = [];
+        
+        drawnow;
+
         while isempty(bund_g) && n_tries > 0
-            [bund_g, drop] = fill_circles(h_feedback,0, nerve_r, bundle_dens, bundle_r_range, min_bundles_dis, 7, ~obstaclesOnBundles, [],false, 0);
+            [bund_g, drop] = fill_circles(h_feedback,0, opticNerveRadius_r, bundle_dens, bundleRadiusRange_r, minBundleDistance_r, 7, ~obstaclesOnBundles, [],false, 0);
             n_tries = n_tries - 1;
             fprintf("Fill Circles: try# %d\n", n_tries);
         end
@@ -238,19 +245,19 @@ end
         end
         
         fprintf("IMAGE FILE = %s\n", t5);
-        if ~exist( imageFile, 'file')
-            fprintf('Cannot load image file %s\n', imageFile);
+        if ~exist( opticalNervePatternImageFile_r, 'file')
+            fprintf('Cannot load image file %s\n', opticalNervePatternImageFile_r);
             M.onibigbw = [];
             %return;
         else
-            oni = imread(imageFile);
+            oni = imread(opticalNervePatternImageFile_r);
             osz = size(oni);
-            f1 = nerve_r*2/osz(1);
+            f1 = opticNerveRadius_r*2/osz(1);
             onibig = imresize(oni, f1, 'bicubic');
             M.onibigbw = imbinarize(rgb2gray(onibig),'adaptive');
         end
         M.bund = bund_g;
-        M.nerve_r = nerve_r;
+        M.opticNerveRadius_r = opticNerveRadius_r;
         axis(M.ax_ui); cla;
         plot_model('no_neuron');
         h_feedback.String = sprintf('Model updated! (%d bundle(s))', size(bund_g, 2));
@@ -268,28 +275,6 @@ end
         h = uicontrol('style','edit', 'Units','Normalized', 'position', [pos+[.08 0] .08 .05], 'String', num2str(def));
     end
 
-    function genMesh(~,~)
-        h_feedback.String = "Generating Mesh! Please wait ...";
-        drawnow;
-        err = generate_delaunay(refine); % Generate Mesh
-        if err
-            h_feedback.String = "Error while generating mesh. Please update the geometry!";
-            drawnow;
-        else
-            h_feedback.String = "Mesh Generation Complete!";
-            drawnow;
-            plot_mesh();
-            hc = allchild(M.ax_ui);
-            for q = 1:length(hc)
-                set(hc(q), 'HitTest', 'off');
-            end
-            ip = plot(init_insult(1), init_insult(2), 'r.', 'markerSize', 20, 'HitTest', 'off');
-            set(gca, 'ButtonDownFcn', @btn_Down);
-            h_feedback.String = "Please select the starting point of the injury!";
-            drawnow;
-            uicontrol('style','pushbutton', 'Units','Normalized', 'position', [.84 .1 .12 .05], 'String', 'RunAlgo', 'Callback', @RunAlgo);
-        end
-    end
 
     function genNeurons(~,~)
         %%delete(fig_ui);
@@ -314,7 +299,7 @@ end
     end
 
     function RunAlgo(~,~)
-        propagation_alg_cuda_m(simIterations, M);
+        propagation_alg_cuda_m(simIterations_r, M);
        % h_feedback.String = "Simulation Animation!";
     end
 
@@ -335,7 +320,7 @@ end
                 .93  .92    1.07    1.16    1.22    1.28
                 .94  .93    1.08    1.19    1.18    1.17
                 .92  1.02   1.02    1.14    1.16    1.24
-                1.01 1.1    1.1     1.22    1.22    1.21  ] * neuron_scale;
+                1.01 1.1    1.1     1.22    1.22    1.21  ] * opticNerveScale_r;
             % imshow(-v, [], 'initialmagnification', 6000)
             stp = .01; % Interpolation step
             
@@ -371,7 +356,7 @@ end
         % draw pixel map
         if any(ff('pixelmap'))
             axis equal, hold on
-            imagesc(M.pixelMap, 'XData', [-1*nerve_r nerve_r], 'YData', [-1*nerve_r, nerve_r]);
+            imagesc(M.pixelMap, 'XData', [-1*opticNerveRadius_r opticNerveRadius_r], 'YData', [-1*opticNerveRadius_r, opticNerveRadius_r]);
             axis('on', 'image');
             hold off;
             drawnow
@@ -380,7 +365,7 @@ end
         
         % draw circles
         axis equal, hold on
-        draw_circles(M.fig_ui, [0 0], M.nerve_r, 200, true, false);
+        draw_circles(M.fig_ui, [0 0], M.opticNerveRadius_r, 200, true, false);
         bundleFill = ~false;
         if ~no_neuron
             draw_circles(M.fig_ui,M.bund(1:2,:)', M.bund(3,:)', 100, bundleFill, true);
@@ -414,7 +399,7 @@ end
                 p(idx,:) = [M.bund(1:2,idx)'-M.bund(3,idx)*.7, M.bund(3,idx)*[1.4 1.4]];
                 ax(idx) = axes();
                 histogram(M.neuron{idx}(3,:), max(5, round(size(M.neuron{idx}, 2)/35)), opts{:});
-                xlim(M.neuron_r_range);
+                xlim(M.axonRadiusRange_r);
                 % set(ax(idx), 'XTickLabel', '');
                 set(ax(idx), 'YTickLabel', '');
                 text(.3, 1.1, sprintf('%.1f(%.1f)', mean(M.neuron{idx}(3,:)), M.expected_r_avg(idx)), 'Units', 'Normalized', 'Color', [.8 .2 .3]);
@@ -423,7 +408,7 @@ end
             size_changed(0, 0);
         else
             histogram(M.neuron{varargin{1}}(3,:), opts{:});
-            xlim(M.neuron_r_range);
+            xlim(M.axonRadiusRange_r);
         end
         drawnow
         
@@ -443,7 +428,7 @@ end
         h_feedback.String ='Generating model .';
         drawnow;
         
-        % whole_geom = [[0 0 nerve_r]' bund_g];
+        % whole_geom = [[0 0 opticNerveRadius_r]' bund_g];
         n_bunds = size(bund_g, 2);
         fprintf('\tNumber of bundles: %d\n', n_bunds);
         
@@ -451,11 +436,13 @@ end
         blood_g  = cell(n_bunds,1);
         expected_r_avg = zeros(n_bunds,1);
         
+        axonPixRange = axonRadiusRange_r * modelResolution_r;
+        
         fprintf('\tNumber of neurons: ');
         total = 0;
         for k = 1:n_bunds
-            expected_r_avg(k) = radius_avg(bund_g(1:2,k)./nerve_r);
-            [neuron_g{k} blood_g{k}] = fill_circles(h_feedback, 5, bund_g(3,k), neuron_dens, neuron_r_range, min_bundles_dis/3, 3, obstaclesOnBundles, M.onibigbw, zoned_r, mielinWidth);
+            expected_r_avg(k) = radius_avg(bund_g(1:2,k)./opticNerveRadius_r);
+            [neuron_g{k} blood_g{k}] = fill_circles(h_feedback, 0.5*modelResolution_r, bund_g(3,k), axonDensity_r, axonPixRange, minBundleDistance_r/3, 3, obstaclesOnBundles, M.onibigbw, zoned_r, mielinWidth_r, OPTIC_NERVE_RADIUS_C*modelResolution_r);
             total = total + size(neuron_g{k}, 2);
             neuron_g{k}(1,:) = neuron_g{k}(1,:) + bund_g(1,k);
             neuron_g{k}(2,:) = neuron_g{k}(2,:) + bund_g(2,k);
@@ -468,19 +455,27 @@ end
         drawnow;
         
         fprintf('Generating Pixel Map\n');
-        pixelMap = cat(3, zeros(2*nerve_r, 2*nerve_r), zeros(2*nerve_r, 2*nerve_r),zeros(2*nerve_r, 2*nerve_r));
-        spaceMap = -1*ones(2*nerve_r, 2*nerve_r);
-        centerMap = -1*ones(2*nerve_r, 2*nerve_r);
-        axonMap = -1*ones(2*nerve_r, 2*nerve_r);
-        concentrationMap1 = zeros(2*nerve_r, 2*nerve_r);
-        concentrationMap2 = zeros(2*nerve_r, 2*nerve_r);
-        axonDeathValue = zeros(2*nerve_r, 2*nerve_r);
-        poxMap = zeros(2*nerve_r, 2*nerve_r);
-        scavMap = zeros(2*nerve_r, 2*nerve_r);
+        pixelMap = cat(3, zeros(2*opticNerveRadius_r, 2*opticNerveRadius_r), zeros(2*opticNerveRadius_r, 2*opticNerveRadius_r),zeros(2*opticNerveRadius_r, 2*opticNerveRadius_r));
+        spaceMap = -1*ones(2*opticNerveRadius_r, 2*opticNerveRadius_r);
+        centerMap = -1*ones(2*opticNerveRadius_r, 2*opticNerveRadius_r);
+        diffMap = zeros(2*opticNerveRadius_r, 2*opticNerveRadius_r);
+        axonMap = -1*ones(2*opticNerveRadius_r, 2*opticNerveRadius_r);
+        concentrationMap1 = zeros(2*opticNerveRadius_r, 2*opticNerveRadius_r);
+        axonDeathValue = zeros(2*opticNerveRadius_r, 2*opticNerveRadius_r);
+        poxMap = zeros(2*opticNerveRadius_r, 2*opticNerveRadius_r);
+        scavMap = zeros(2*opticNerveRadius_r, 2*opticNerveRadius_r);
         
-        for i = 1: 2*nerve_r
-            for j = 1: 2*nerve_r
-                if sqrt((i-nerve_r)^2+(j-nerve_r)^2) <= nerve_r
+        diffValues = [ -1 diffusionDeadAxon_r *(modelResolution_r/10)^2 diffusionInsideAxon_r *(modelResolution_r/10)^2 diffusionAxonBoundary_r *(modelResolution_r/10)^2 diffusionOutsideAxon_r *(modelResolution_r/10)^2];
+        diffDead = 2;
+        diffInside = 3;
+        diffBorder = 4;
+        diffOutside = 5;
+        
+        numBits = 3;
+        
+        for i = 1: 2*opticNerveRadius_r
+            for j = 1: 2*opticNerveRadius_r
+                if sqrt((i-opticNerveRadius_r)^2+(j-opticNerveRadius_r)^2) <= opticNerveRadius_r
                     %pixelMap(i,j,:) = 0.4;
                     spaceMap(i,j) = 0;
                     centerMap(i, j) = 0;
@@ -508,7 +503,7 @@ end
         
         
         bconst = 500000; % [DWL] need some formula based on bundles; large enough for now.
-        %temp = nerve_r / sqrt(2);
+        %temp = opticNerveRadius_r / sqrt(2);
         %lenAdjust = 1;
         for k = 1:n_bunds
             lb  = size(neuron_g{k}, 2);
@@ -517,14 +512,14 @@ end
                 yc = neuron_g{k}(2,q);
                 r  = neuron_g{k}(3,q);
                 m  = neuron_g{k}(4,q);
-                xmin = ceil(xc+nerve_r - (r+m));
-                xmax = ceil(xc+nerve_r + (r+m));
-                ymin = ceil(nerve_r -yc - (r+m));
-                ymax = ceil(nerve_r -yc + (r+m));
-                xcn = floor(xc)+nerve_r;
-                ycn = nerve_r - floor(yc);
+                xmin = ceil(xc+opticNerveRadius_r - (r+m));
+                xmax = ceil(xc+opticNerveRadius_r + (r+m));
+                ymin = ceil(opticNerveRadius_r -yc - (r+m));
+                ymax = ceil(opticNerveRadius_r -yc + (r+m));
+                xcn = floor(xc)+opticNerveRadius_r;
+                ycn = opticNerveRadius_r - floor(yc);
                 axonMap(ycn, xcn) = 1;
-                axonDeathValue(ycn, xcn) = deathThr*(1+4*xcn/(2*nerve_r));
+                axonDeathValue(ycn, xcn) = deathToxThreshold_r*(1+4*xcn/(2*opticNerveRadius_r))/(modelResolution_r^2);
                 for i = ymin:ymax
                     for j = xmin:xmax
                         if sqrt((i-ycn)^2+(j-xcn)^2) <= (r+m)
@@ -538,7 +533,7 @@ end
                                 pixelMap(i,j,3) = 0;
                             end
                             spaceMap(i, j ) = (k-1)*bconst + q; % neuron index
-                            linIndex = (xcn-1)*2*nerve_r+ ycn;
+                            linIndex = (xcn-1)*2*opticNerveRadius_r+ ycn;
                             centerMap(i,j) = linIndex;
 %                             if axonMap(linIndex) ~= 1
 %                                 fprintf('Error in center %d\n', linIndex);
@@ -549,8 +544,8 @@ end
             end
         end
         
-        for i = 1: 2*nerve_r
-            for j = 1: 2*nerve_r
+        for i = 1: 2*opticNerveRadius_r
+            for j = 1: 2*opticNerveRadius_r
                 if spaceMap(i,j) < 0
                     continue
                 end
@@ -562,12 +557,12 @@ end
                     % the production is proportional to the *perimeter*
                     % which is 2*pi*r. pox*pi*r^2 = 2*prod/r*pi*r^2 =
                     % 2*pi*prod*r ==>> total poxProd per neuron ~2*pi*r
-                    poxMap(i,j) = 2*prodAmount/(neuron(3)/10);
-                    scavMap(i,j) = (1-scavIn);
+                    poxMap(i,j) = 2*toxProductionPerArea_r/(neuron(3)/modelResolution_r)/(modelResolution_r^2);
+                    scavMap(i,j) = (1-scanInsideAxon_r);
                 else
                     %pixel is part of connecting tissue
                     poxMap(i,j) = 0;
-                    scavMap(i,j) = (1-scavOut);
+                    scavMap(i,j) = (1-scavOutsideAxon_r);
                 end
             end
         end
@@ -575,11 +570,14 @@ end
         fprintf('Done Pixel Map\n');
         
         M.h_feedback = h_feedback;
-        M.nerve_r = nerve_r;
+        M.opticNerveReal = OPTIC_NERVE_RADIUS_C;
+        M.opticNerveRadiusPixels = opticNerveRadius_r;
+        M.opticNerveScale = opticNerveScale_r;
+        M.modelResolution = modelResolution_r;
         M.init_insult  = init_insult;
         M.insultAmount = insultAmount;
         M.insultRadius = insultRadius;
-        M.neuron_r_range = neuron_r_range;
+        M.axonRadiusRange_r = axonRadiusRange_r;
         M.bund = bund_g;
         M.neuron = neuron_g;
         M.expected_r_avg = expected_r_avg;
@@ -587,19 +585,21 @@ end
         M.pixelMap = pixelMap;
         M.spaceMap = spaceMap;
         M.cMap1 = concentrationMap1;
-        M.cMap2 = concentrationMap2;
         M.axonMap = axonMap;
         M.centerMap = centerMap;
         M.poxMap = poxMap;
         M.scavMap = scavMap;
         M.axonDeathValue = axonDeathValue;
-        M.diffInside = diffusionInside;
-        M.diffBorder = diffusionBoundary;
-        M.diffOutside = diffusionOutside;
-        M.deathThr = deathThr;
-        M.deathRelease = deathRelease;
-        M.scavIn = scavIn;
-        M.scavOut = scavOut;
+        M.diffDead = diffDead;
+        M.diffInside = diffInside;
+        M.diffBorder = diffBorder;
+        M.diffOutside = diffOutside;
+        M.diffMap = diffMap;
+        M.diffValues = diffValues;
+        M.deathToxThreshold_r = deathToxThreshold_r / modelResolution_r^2;
+        M.extraToxReleaseOnDeath_r = extraToxReleaseOnDeath_r / modelResolution_r^2;
+        M.scanInsideAxon_r = scanInsideAxon_r;
+        M.scavOutsideAxon_r = scavOutsideAxon_r;
         M.create_csg = @create_csg;
         M.plot.model = @plot_model;
         M.plot.histogram = @plot_histogram;
@@ -624,10 +624,10 @@ end
         err = false;
         fprintf('\tCreating Delaunay mesh... ');
         
-        %whole_geom = [[0 0 M.nerve_r]' M.bund M.neuron{:}];      
+        %whole_geom = [[0 0 M.opticNerveRadius_r]' M.bund M.neuron{:}];      
         %ang = (linspace(0,2*pi,100)); % min(round(.5*radius), 15)
-        %xp = nerve_r*cos(ang);
-        %yp = nerve_r*sin(ang);
+        %xp = opticNerveRadius_r*cos(ang);
+        %yp = opticNerveRadius_r*sin(ang);
         
         whole_x =  M.neuron{:}(1,:)';
         whole_y =  M.neuron{:}(2,:)';
