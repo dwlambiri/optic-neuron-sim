@@ -1,5 +1,7 @@
 __global__  void propagation_algo_cuda(
         int N,
+        int numPixels,
+        const int* pixelArray,
         float* tox_prod,
         short* axons,
         unsigned char* blue,
@@ -17,15 +19,26 @@ __global__  void propagation_algo_cuda(
         bool   algo,
         float* deathThr)
 {
-	//int idx = (blockIdx.x * gridDim.y + blockIdx.y) * blockDim.x + threadIdx.x;
-    int xidx = blockIdx.x * blockDim.x + threadIdx.x;
-    int yidx = blockIdx.y * blockDim.y + threadIdx.y;
+	int idx = (blockIdx.x * gridDim.y + blockIdx.y) * blockDim.x + threadIdx.x;
+    if (idx >= numPixels) {
+        return;
+    }
 
-    int index = yidx*N+ xidx;
-    int indexUp = (yidx-1)*N + xidx;
-    int indexDown = (yidx+1)*N + xidx;
-    int indexLeft = yidx*N + xidx -1;
-    int indexRight = yidx*N + xidx+1;
+    int xy = pixelArray[idx];
+
+    if (xy < N || xy > N*(N-1)) {
+        return;
+    }
+    
+
+    //int xidx = blockIdx.x * blockDim.x + threadIdx.x;
+    //int yidx = blockIdx.y * blockDim.y + threadIdx.y;
+
+    int index = xy;
+    int indexUp = xy -N ;
+    int indexDown = xy + N;
+    int indexLeft = xy -1;
+    int indexRight = xy +1;
 
     const short aliveAxon_c = 1;
     const short deadAxon_c  = 2;
@@ -95,4 +108,12 @@ __global__  void propagation_algo_cuda(
 
     cMap2[index] *= detox[index];
                
+/*
+    if(cMap2[index] > deathThreashold && tox_prod[index] > 0) {
+        cMap2[index] = amountReleasedOnDeath;
+        tox_prod[index] = 0; 
+        return;
+    }
+*/      
+    
 }

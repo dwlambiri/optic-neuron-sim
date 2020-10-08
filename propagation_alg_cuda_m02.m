@@ -1,3 +1,4 @@
+
 function propagation_alg_cuda_m01(simIterations, M, itershow, algo, showTox)
 
 gd = gpuDevice();
@@ -19,14 +20,23 @@ end
 
 fprintf('Compilation successful! Building GPU Data...\n');
 
+N = 2*M.opticNerveRadiusPixels;
+
+numPixels = 0;
+usedPixels = zeros(1,N*N);
+
+for i=1:N*N
+    if M.spaceMap(i) ~= -1
+       numPixels = numPixels+1; 
+       usedPixels(numPixels) = i -1;
+    end
+end
 
 ptxFilename =  strcat(filePrefix, '.ptx');
 kernel = parallel.gpu.CUDAKernel( ptxFilename, cudaFilename );
 
-threadPerBlock = 32;
-N = 2*M.opticNerveRadiusPixels;
-kernel.ThreadBlockSize = [ threadPerBlock, threadPerBlock,1];
-kernel.GridSize = [ceil(N/threadPerBlock), ceil(N/threadPerBlock),1 ];
+kernel.ThreadBlockSize = [kernel.MaxThreadsPerBlock,1,1];
+kernel.GridSize = [ceil(numPixels/kernel.MaxThreadsPerBlock),1];
 
 xinsult = M.init_insult(1);
 yinsult = M.init_insult(2);
@@ -49,7 +59,6 @@ if M.spaceMap(yinsult,xinsult) < 0
     return;
 end
 
-
 gMap = gpuArray(cast( cat(3, M.cMap1, M.cMap1), 'single'));
 %gMap1 = gMap(:,:,1);
 %gMap2 = gMap(:,:,2);
@@ -61,6 +70,7 @@ gcmap = gpuArray(cast(M.centerMap, 'single'));
 gtmap = gpuArray(cast(M.axonDeathValue, 'single'));
 %gpixg  = gpuArray(M.pixelMap(:,:,2));
 gpixb  = gpuArray(cast(zeros(N),'uint8'));
+gused  = gpuArray(cast(usedPixels(1:numPixels), 'int32'));
 
 
 fprintf('Running simulation .... \n');
@@ -75,7 +85,7 @@ upperLimit = (N)^2-2;
 tic
 for i=1:simIterations
     %tic
-    [gpox, gamap, gpixb, gMap(:,:,2-mod(i,2)), gscav] = feval( kernel, N, gpox, gamap, gpixb, gMap(:,:,2- mod(i,2)), gMap(:,:,1+mod(i,2)), gscav,gcmap, M.diffValues(M.diffInside), M.diffValues(M.diffOutside), lowerLimit, upperLimit, M.deathToxThreshold_r, M.extraToxReleaseOnDeath_r, 1-M.scavOutsideAxon_r, algo, gtmap ); 
+    [gpox, gamap, gpixb, gMap(:,:,2-mod(i,2)), gscav] = feval( kernel, N, numPixels, gused, gpox, gamap, gpixb, gMap(:,:,2- mod(i,2)), gMap(:,:,1+mod(i,2)), gscav,gcmap, M.diffValues(M.diffInside), M.diffValues(M.diffOutside), lowerLimit, upperLimit, M.deathToxThreshold_r, M.extraToxReleaseOnDeath_r, 1-M.scavOutsideAxon_r, algo, gtmap ); 
     
     %toc
    
