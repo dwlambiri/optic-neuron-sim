@@ -9,7 +9,7 @@ wait(gd);
 
 %neuron_speed_formula = @(R) 2./R; % 2/R, For  2/R^2  write this code   ->>  2./R.^2
 % Load the kernel
-filePrefix = 'propagation_algo_cuda';
+filePrefix = 'propagation_algo_cuda02';
 cudaFilename = strcat(filePrefix, '.cu');
 fprintf('Compiling CUDA file* %s\n', cudaFilename);
 
