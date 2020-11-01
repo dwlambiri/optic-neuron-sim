@@ -1,5 +1,5 @@
 
-function propagation_alg_cuda_m3d(noPlanes, minInjury, maxInjury, simIterations, M, itershow, algo, showTox)
+function toxMap=propagation_alg_cuda_m3d(noPlanes, minInjury, maxInjury, simIterations, M, itershow, algo, showTox)
 
 gd = gpuDevice();
 reset(gd);
@@ -84,12 +84,12 @@ tic
 head = 2;
 % for i=0:simIterations
 %     %tic
-%     fprintf("LEVEL %d [%d, %d, %d, %d]\n", 1, 1+mod(head-2, totalPlanes), 1+mod(head, totalPlanes), 1+mod(head, totalPlanes), 1+mod(head+1, totalPlanes));    
+%     fprintf("LEVEL %d [%d, %d, %d, %d]\n", 1, 1+mod(head-2, totalPlanes), 1+mod(head, totalPlanes), 1+mod(head, totalPlanes), 1+mod(head+1, totalPlanes));
 %     for j = 1: noPlanes-2
 %         fprintf("LEVEL %d [%d, %d, %d, %d %d]\n", j, 1+mod(head-2+j, totalPlanes), 1+mod(head-2+j, totalPlanes), 1+mod(head-1+j, totalPlanes), 1+mod(head+j, totalPlanes), 1+mod(head+j+1, totalPlanes));
 %     end
 %     fprintf("LEVEL %d [%d, %d, %d, %d %d]\n\n\n", noPlanes, 1+mod(head-2+noPlanes-1, totalPlanes), 1+mod(head-2+noPlanes-1, totalPlanes), 1+mod(head-1+noPlanes-1, totalPlanes), 1+mod(head+noPlanes-1, totalPlanes), 1+mod(head+noPlanes-1, totalPlanes));
-% 
+%
 %     head = mod(head-2, totalPlanes);
 % end
 
@@ -97,9 +97,9 @@ nerveLevels = maxInjury +1;
 
 for i=0:simIterations
     %tic
-        %fprintf("LEVEL %d [%d, %d, %d, %d]\n", 1, 1+mod(head-2, totalPlanes), 1+mod(head, totalPlanes), 1+mod(head, totalPlanes), 1+mod(head+1, totalPlanes));    
-
-    [gpox, gamap, gpixb, gMap(:,:,1+mod(head-2, totalPlanes)), gscav] = feval( kernel, N, gpox, gamap, gpixb, gMap(:,:,1+mod(head-2, totalPlanes)), gMap(:,:,1+mod(head, totalPlanes)), gMap(:,:,1+mod(head, totalPlanes)), gMap(:,:,1+mod(head+1, totalPlanes)), gscav,gcmap, M.diffValues(M.diffInside), M.diffValues(M.diffOutside), lowerLimit, upperLimit, M.deathToxThreshold_r, M.extraToxReleaseOnDeath_r, 1-M.scavOutsideAxon_r, algo, gtmap, 1, 0, 0 ); 
+    %fprintf("LEVEL %d [%d, %d, %d, %d]\n", 1, 1+mod(head-2, totalPlanes), 1+mod(head, totalPlanes), 1+mod(head, totalPlanes), 1+mod(head+1, totalPlanes));
+    
+    [gpox, gamap, gpixb, gMap(:,:,1+mod(head-2, totalPlanes)), gscav] = feval( kernel, N, gpox, gamap, gpixb, gMap(:,:,1+mod(head-2, totalPlanes)), gMap(:,:,1+mod(head, totalPlanes)), gMap(:,:,1+mod(head, totalPlanes)), gMap(:,:,1+mod(head+1, totalPlanes)), gscav,gcmap, M.diffValues(M.diffInside), M.diffValues(M.diffOutside), lowerLimit, upperLimit, M.deathToxThreshold_r, M.extraToxReleaseOnDeath_r, 1-M.scavOutsideAxon_r, algo, gtmap, 1, 0, 0 );
     for j = 1:nerveLevels
         insult = 0;
         if j >=minInjury && j <= maxInjury
@@ -109,7 +109,7 @@ for i=0:simIterations
         %totalPlanes), 1+mod(head-2+j, totalPlanes), 1+mod(head-1+j,
         %totalPlanes), 1+mod(head+j, totalPlanes), 1+mod(head+j+1,
         %totalPlanes));
-        [gpox, gamap, gpixb, gMap(:,:, 1+mod(head-2+j, totalPlanes)), gscav] = feval( kernel, N, gpox, gamap, gpixb, gMap(:,:,1+mod(head-2+j, totalPlanes)), gMap(:,:, 1+mod(head-1+j, totalPlanes)), gMap(:,:, 1+mod(head+j, totalPlanes)), gMap(:,:, 1+mod(head+j+1, totalPlanes)), gscav,gcmap, M.diffValues(M.diffInside), M.diffValues(M.diffOutside), lowerLimit, upperLimit, M.deathToxThreshold_r, M.extraToxReleaseOnDeath_r, 1-M.scavOutsideAxon_r, algo, gtmap, 0, 0, insult); 
+        [gpox, gamap, gpixb, gMap(:,:, 1+mod(head-2+j, totalPlanes)), gscav] = feval( kernel, N, gpox, gamap, gpixb, gMap(:,:,1+mod(head-2+j, totalPlanes)), gMap(:,:, 1+mod(head-1+j, totalPlanes)), gMap(:,:, 1+mod(head+j, totalPlanes)), gMap(:,:, 1+mod(head+j+1, totalPlanes)), gscav,gcmap, M.diffValues(M.diffInside), M.diffValues(M.diffOutside), lowerLimit, upperLimit, M.deathToxThreshold_r, M.extraToxReleaseOnDeath_r, 1-M.scavOutsideAxon_r, algo, gtmap, 0, 0, insult);
         if nerveLevels >= noPlanes-2
             nerveLevels = noPlanes-2;
         else
@@ -117,33 +117,82 @@ for i=0:simIterations
         end
     end
     [gpox, gamap, gpixb, gMap(:,:, 1+mod(head-2+noPlanes-1, totalPlanes)), gscav] = feval( kernel, N, gpox, gamap, gpixb, gMap(:,:,1+mod(head-2+noPlanes-1, totalPlanes)), gMap(:,:, 1+mod(head-1+noPlanes-1, totalPlanes)), gMap(:,:, 1+mod(head+noPlanes-1, totalPlanes)), gMap(:,:, 1+mod(head+noPlanes-1, totalPlanes)), gscav,gcmap, M.diffValues(M.diffInside), M.diffValues(M.diffOutside), lowerLimit, upperLimit, M.deathToxThreshold_r, M.extraToxReleaseOnDeath_r, 1-M.scavOutsideAxon_r, algo, gtmap, 0, 1, 0 );
-
+    
     %fprintf("LEVEL %d [%d, %d, %d, %d %d]\n\n\n", noPlanes, 1+mod(head-2+noPlanes-1, totalPlanes), 1+mod(head-2+noPlanes-1, totalPlanes), 1+mod(head-1+noPlanes-1, totalPlanes), 1+mod(head+noPlanes-1, totalPlanes), 1+mod(head+noPlanes-1, totalPlanes));
-
+    
     head = mod(head-2, totalPlanes);
     
     %toc
-   
-   if mod(i, itershow) == 1
+    
+    if mod(i, itershow) == 1
         fprintf('Running simulation: [Iter %d of %d]\n', i, simIterations);
-         %pm = cat(3, gMap1, gMap1, gMap1);
-         if showTox
-             cla reset; imagesc(gMap(:,:,noPlanes - mod(noPlanes+i, noPlanes))); drawnow('limitrate'); 
-         else
-             cla reset; imagesc(gpixb); drawnow('limitrate'); 
-         end
-          
-         %displayImage(fig, pm, M.nerve_r);
+        %pm = cat(3, gMap1, gMap1, gMap1);
+        if showTox
+            cla reset; imagesc(gMap(:,:,noPlanes - mod(noPlanes+i, noPlanes))); drawnow('limitrate');
+        else
+            cla reset; imagesc(gpixb); drawnow('limitrate');
+        end
+        
+        %displayImage(fig, pm, M.nerve_r);
         %                plot_model('pixelmap');
-   end
+    end
 end
+
+sim1 = head-1;
+
+% rotate such that the head is at plane 1
+fprintf("head1 %d sim1/2 %d\n", head, sim1/2);
+for i=0:sim1/2
+    %tic
+    %fprintf("LEVEL %d [%d, %d, %d, %d]\n", 1, 1+mod(head-2, totalPlanes), 1+mod(head, totalPlanes), 1+mod(head, totalPlanes), 1+mod(head+1, totalPlanes));
+    
+    [gpox, gamap, gpixb, gMap(:,:,1+mod(head-2, totalPlanes)), gscav] = feval( kernel, N, gpox, gamap, gpixb, gMap(:,:,1+mod(head-2, totalPlanes)), gMap(:,:,1+mod(head, totalPlanes)), gMap(:,:,1+mod(head, totalPlanes)), gMap(:,:,1+mod(head+1, totalPlanes)), gscav,gcmap, M.diffValues(M.diffInside), M.diffValues(M.diffOutside), lowerLimit, upperLimit, M.deathToxThreshold_r, M.extraToxReleaseOnDeath_r, 1-M.scavOutsideAxon_r, algo, gtmap, 1, 0, 0 );
+    for j = 1:nerveLevels
+        insult = 0;
+        if j >=minInjury && j <= maxInjury
+            insult = 1;
+        end
+        %fprintf("LEVEL %d [%d, %d, %d, %d %d]\n", j, 1+mod(head-2+j,
+        %totalPlanes), 1+mod(head-2+j, totalPlanes), 1+mod(head-1+j,
+        %totalPlanes), 1+mod(head+j, totalPlanes), 1+mod(head+j+1,
+        %totalPlanes));
+        [gpox, gamap, gpixb, gMap(:,:, 1+mod(head-2+j, totalPlanes)), gscav] = feval( kernel, N, gpox, gamap, gpixb, gMap(:,:,1+mod(head-2+j, totalPlanes)), gMap(:,:, 1+mod(head-1+j, totalPlanes)), gMap(:,:, 1+mod(head+j, totalPlanes)), gMap(:,:, 1+mod(head+j+1, totalPlanes)), gscav,gcmap, M.diffValues(M.diffInside), M.diffValues(M.diffOutside), lowerLimit, upperLimit, M.deathToxThreshold_r, M.extraToxReleaseOnDeath_r, 1-M.scavOutsideAxon_r, algo, gtmap, 0, 0, insult);
+        if nerveLevels >= noPlanes-2
+            nerveLevels = noPlanes-2;
+        else
+            nerveLevels = nerveLevels + 1;
+        end
+    end
+    [gpox, gamap, gpixb, gMap(:,:, 1+mod(head-2+noPlanes-1, totalPlanes)), gscav] = feval( kernel, N, gpox, gamap, gpixb, gMap(:,:,1+mod(head-2+noPlanes-1, totalPlanes)), gMap(:,:, 1+mod(head-1+noPlanes-1, totalPlanes)), gMap(:,:, 1+mod(head+noPlanes-1, totalPlanes)), gMap(:,:, 1+mod(head+noPlanes-1, totalPlanes)), gscav,gcmap, M.diffValues(M.diffInside), M.diffValues(M.diffOutside), lowerLimit, upperLimit, M.deathToxThreshold_r, M.extraToxReleaseOnDeath_r, 1-M.scavOutsideAxon_r, algo, gtmap, 0, 1, 0 );
+    
+    %fprintf("LEVEL %d [%d, %d, %d, %d %d]\n\n\n", noPlanes, 1+mod(head-2+noPlanes-1, totalPlanes), 1+mod(head-2+noPlanes-1, totalPlanes), 1+mod(head-1+noPlanes-1, totalPlanes), 1+mod(head+noPlanes-1, totalPlanes), 1+mod(head+noPlanes-1, totalPlanes));
+    
+    head = mod(head-2, totalPlanes);
+    
+    %toc
+    
+    if mod(i, itershow) == 1
+        fprintf('Running simulation: [Iter %d of %d]\n', i, simIterations);
+        %pm = cat(3, gMap1, gMap1, gMap1);
+        if showTox
+            cla reset; imagesc(gMap(:,:,noPlanes - mod(noPlanes+i, noPlanes))); drawnow('limitrate');
+        else
+            cla reset; imagesc(gpixb); drawnow('limitrate');
+        end
+        
+        %displayImage(fig, pm, M.nerve_r);
+        %                plot_model('pixelmap');
+    end
+end
+fprintf("head2 %d\n", head);
 toc
 fprintf('Simulation Complete. HEAD = %d\n', mod(head+1, totalPlanes) );
 toxMap = gather(gMap);
-figure; imshow3D(toxMap);
-drawnow('limitrate'); 
+%figure; imshow3D(toxMap);
+%drawnow('limitrate');
+volumeViewer(toxMap);
 
 % for i = 1: noPlanes+noExtra
-%    sum(toxMap(:,:,i), 'all') 
+%    sum(toxMap(:,:,i), 'all')
 % end
 end

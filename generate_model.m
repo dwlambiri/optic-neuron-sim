@@ -54,6 +54,7 @@ diffusionInsideAxon_r = read_pair('diffusion_inside', 0.02);
 diffusionOutsideAxon_r = read_pair('diffusion_outside', 0.02);
 diffusionAxonBoundary_r = read_pair('diffusion_boundary', 0.02);
 simIterations_r = read_pair('iterations', 5000);
+deathToxVar = read_pair('death_tox_var', 0.4);
 
 if any(f('zoned'))
     zoned_r = true;
@@ -519,7 +520,7 @@ end
                 xcn = floor(xc)+opticNerveRadius_r;
                 ycn = opticNerveRadius_r - floor(yc);
                 axonMap(ycn, xcn) = 1;
-                axonDeathValue(ycn, xcn) = deathToxThreshold_r*(1+4*xcn/(2*opticNerveRadius_r))/(modelResolution_r^2);
+                axonDeathValue(ycn, xcn) = deathToxThreshold_r*(1+deathToxVar*xcn/(2*opticNerveRadius_r))/(modelResolution_r^2);
                 for i = ymin:ymax
                     for j = xmin:xmax
                         if sqrt((i-ycn)^2+(j-xcn)^2) <= (r+m)
