@@ -4,5 +4,4 @@
 
 Improved placement of axons in ON
 
-![image](https://user-images.githubusercontent.com/28689806/187078335-c85a1531-ac53-402f-8ff1-7b9e3464dbf7.png)
-
+![image](https://user-images.githubusercontent.com/28689806/187078349-9dbe9650-4e3d-478b-8974-6557f7d9b35a.png)
